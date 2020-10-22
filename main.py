@@ -74,7 +74,6 @@ class MacawNode(wsp.Node):
                 self.log(f"Received RTS from {src}")
                 yield self.timeout(5)
                 self.scene.clearlinks()
-                self.scene.addlink(SOURCE, DEST, "parent")
                 yield self.timeout(2)
                 self.log(f"Send CTS to {src}")
                 self.send_cts(self.id)
@@ -135,7 +134,7 @@ simulator = wsp.Simulator(
 )
 
 # define a line style for parent links
-simulator.scene.linestyle("parent", color=(0, .7, 0), arrow="tail", width=2)
+simulator.scene.linestyle("parent", color=(0, .7, 0), arrow="head", width=2)
 
 # place nodes over 100x100 grids
 for x in range(10):
