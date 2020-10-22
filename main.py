@@ -9,16 +9,12 @@ def delay():
     return random.uniform(.2, .8)
 
 
-class MyNode(wsp.Node):
-    tx_range = 100
-
+class MacawNode(wsp.Node):
     def __init__(self, sim, id, pos):
         super().__init__(sim, id, pos)
         self.prev = None
         self.next = None
-
-    def init(self):
-        super().init()
+        self._data_length = 0
 
     def run(self):
         if self.id is SOURCE:
@@ -44,18 +40,36 @@ class MyNode(wsp.Node):
             self.scene.nodewidth(self.id, 2)
         self.send(self.prev, msg='CTS', src=src)
 
-    def start_send_data(self):
-        self.scene.clearlinks()
-        seq = 0
-        while True:
-            yield self.timeout(1)
-            self.log(f"Send data to {DEST} with seq {seq}")
-            self.send_data(self.id, seq)
-            seq += 1
+    def send_ds(self, src, length):
+        if self.id is not DEST:
+            self.scene.nodecolor(self.id, 0, 0.7, 0)
+            self.scene.nodewidth(self.id, 2)
+        self.send(self.next, msg='DS', src=src, length=length)
 
     def send_data(self, src, seq):
-        self.log(f"Forward data with seq {seq} via {self.next}")
+        # self.log(f"Forward data with seq {seq} via {self.next}")
         self.send(self.next, msg='DATA', src=src, seq=seq)
+
+    def send_ack(self, src):
+        if self.id is not SOURCE:
+            self.scene.nodecolor(self.id, 0, .7, 0)
+            self.scene.nodewidth(self.id, 2)
+        self.send(self.prev, msg='ACK', src=src)
+
+    def start_send_data(self):
+        self.scene.clearlinks()
+        seq = 1
+
+        data_length = random.randint(5, 10)
+
+        self.log(f"Send DS to {DEST} with length {data_length}")
+        self.send_ds(self.id, data_length)
+
+        for _ in range(data_length):
+            yield self.timeout(1)
+            self.log(f"Send DATA to {DEST} with seq {seq}")
+            self.send_data(self.id, seq)
+            seq += 1
 
     def on_receive(self, sender, msg, src, **kwargs):
         if msg == 'RTS':
@@ -88,6 +102,16 @@ class MyNode(wsp.Node):
                 yield self.timeout(.2)
                 self.send_cts(src)
 
+        elif msg == 'DS':
+            if self.id is not DEST:
+                yield self.timeout(.2)
+                self.send_ds(src, **kwargs)
+
+            else:
+                length = kwargs['length']
+                self.log(f"Got DS from {src} with length {length}")
+                self._data_length = length
+
         elif msg == 'DATA':
             if self.id is not DEST:
                 yield self.timeout(.2)
@@ -95,27 +119,42 @@ class MyNode(wsp.Node):
 
             else:
                 seq = kwargs['seq']
-                self.log(f"Got data from {src} with seq {seq}")
+                self.log(f"Got DATA from {src} with seq {seq}")
+
+                if seq == self._data_length:
+                    self.log(f"Received all packets! {seq} of {self._data_length}")
+                    yield self.timeout(1)
+                    self.log(f"Send ACK to {src}")
+                    self.send_ack(self.id)
+
+        elif msg == 'ACK':
+            if self.id is SOURCE:
+                self.log(f"Received ACK from {src}")
+
+            else:
+                yield self.timeout(.2)
+                self.send_ack(src)
 
 
-sim = wsp.Simulator(
+simulator = wsp.Simulator(
     until=100,
     timescale=1,
     visual=True,
     terrain_size=(700, 700),
-    title="MACAW Demo")
+    title="MACAW Demo"
+)
 
 # define a line style for parent links
-sim.scene.linestyle("parent", color=(0, .8, 0), arrow="tail", width=2)
+simulator.scene.linestyle("parent", color=(0, .8, 0), arrow="tail", width=2)
 
 # place nodes over 100x100 grids
 for x in range(10):
     for y in range(10):
         px = 50 + x * 60 + random.uniform(-20, 20)
         py = 50 + y * 60 + random.uniform(-20, 20)
-        node = sim.add_node(MyNode, (px, py))
+        node = simulator.add_node(MacawNode, (px, py))
         node.tx_range = 75
         node.logging = True
 
 # start the simulation
-sim.run()
+simulator.run()
