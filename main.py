@@ -1,8 +1,8 @@
 import random
 import wsnsimpy.wsnsimpy_tk as wsp
 
-SOURCE = 0  # random.randint(0, 10)
-DEST = 15  # random.randint(90, 99)
+SOURCE = 12  # random.randint(0, 10)
+DEST = 67  # random.randint(90, 99)
 
 
 def delay():
@@ -73,12 +73,11 @@ class MacawNode(wsp.Node):
             if self.id is DEST:
                 self.log(f"Received RTS from {src}")
                 yield self.timeout(5)
+                self.scene.clearlinks()
+                self.scene.addlink(SOURCE, DEST, "parent")
+                yield self.timeout(2)
                 self.log(f"Send CTS to {src}")
                 self.send_cts(self.id)
-
-            # else:
-            #     yield self.timeout(delay())
-            #     self.send_rts(src)
 
         elif msg == 'CTS':
             if self.id is SOURCE:
@@ -88,10 +87,10 @@ class MacawNode(wsp.Node):
                 self.log("Start sending data")
                 self.start_process(self.start_send_data())
 
-            elif self.id is kwargs['target']:
-                self.next = sender
-                yield self.timeout(.2)
-                self.send_cts(src)
+            # elif self.id is kwargs['target']:
+            #     self.next = sender
+            #     yield self.timeout(.2)
+            #     self.send_cts(src)
 
         elif msg == 'DS':
             if self.id is not DEST:
@@ -136,17 +135,16 @@ simulator = wsp.Simulator(
 )
 
 # define a line style for parent links
-simulator.scene.linestyle("parent", color=(0, .8, 0), arrow="tail", width=2)
+simulator.scene.linestyle("parent", color=(0, .7, 0), arrow="tail", width=2)
 
 # place nodes over 100x100 grids
 for x in range(10):
     for y in range(10):
-        if x % 3 == 0 and y % 3 == 0:
-            px = 200 + x * 30 + random.uniform(-20, 20)
-            py = 200 + y * 30 + random.uniform(-20, 20)
-            node = simulator.add_node(MacawNode, (px, py))
-            node.tx_range = 450
-            node.logging = True
+        px = 50 + x * 60 + random.uniform(-20, 20)
+        py = 50 + y * 60 + random.uniform(-20, 20)
+        node = simulator.add_node(MacawNode, (px, py))
+        node.tx_range = 450
+        node.logging = True
 
 # start the simulation
 simulator.run()
