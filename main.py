@@ -35,7 +35,7 @@ class MacawNode(wsp.Node):
         self.send(wsp.BROADCAST_ADDR, msg='RTS', src=src)
 
     def send_cts(self, src):
-        self.send(wsp.BROADCAST_ADDR, msg='CTS', src=src, target=self.prev)
+        self.send(self.prev, msg='CTS', src=src)
 
     def send_ds(self, src, length):
         self.send(self.next, msg='DS', src=src, length=length)
@@ -85,11 +85,6 @@ class MacawNode(wsp.Node):
                 yield self.timeout(5)
                 self.log("Start sending data")
                 self.start_process(self.start_send_data())
-
-            # elif self.id is kwargs['target']:
-            #     self.next = sender
-            #     yield self.timeout(.2)
-            #     self.send_cts(src)
 
         elif msg == 'DS':
             if self.id is not DEST:
@@ -142,7 +137,7 @@ for x in range(10):
         px = 50 + x * 60 + random.uniform(-20, 20)
         py = 50 + y * 60 + random.uniform(-20, 20)
         node = simulator.add_node(MacawNode, (px, py))
-        node.tx_range = 450
+        node.tx_range = 500
         node.logging = True
 
 # start the simulation
