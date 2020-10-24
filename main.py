@@ -31,6 +31,17 @@ class MacawNode(wsp.Node):
         else:
             self.scene.nodecolor(self.id, .7, .7, .7)
 
+        if self.id == 77:
+            self.scene.nodecolor(self.id, 0, 1, 1)
+            self.scene.nodewidth(self.id, 2)
+            yield self.timeout(10)
+            self.log(f"Send RTS to {46}")
+            self.send_rts(target=46)
+
+        elif self.id == 46:
+            self.scene.nodecolor(self.id, 1, 1, 0)
+            self.scene.nodewidth(self.id, 2)
+
     def send_rts(self, target):
         self.send(wsp.BROADCAST_ADDR, msg='RTS', target=target)
 
@@ -67,7 +78,7 @@ class MacawNode(wsp.Node):
 
     def on_receive(self, sender, msg, **kwargs):
         target = kwargs['target']
-        if msg == 'RRTS':
+        if msg == 'RRTS' and self.id is target:
             yield self.timeout(1)
             self.log(f"Send RTS to {sender}")
             self.send_rts(target=sender)
@@ -86,6 +97,7 @@ class MacawNode(wsp.Node):
                 self.send_cts(target=sender)
 
             elif self.id is target and self._locked and not self._rrts_target:
+                self.log(f"Got RTS while locked")
                 self._rrts_target = sender
 
         elif msg == 'CTS':
@@ -120,7 +132,8 @@ class MacawNode(wsp.Node):
                 self.log(f"Received ACK from {sender}")
 
             elif self._locked and self._rrts_target:
-                yield self.timeout(delay())
+                yield self.timeout(delay() * 2)
+                self.log(f"Send RRTS to {self._rrts_target}")
                 self._locked = False
                 self.send_rrts()
 
