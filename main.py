@@ -3,6 +3,7 @@ import wsnsimpy.wsnsimpy_tk as wsp
 
 SOURCE = 12  # random.randint(0, 10)
 DEST = 36  # random.randint(90, 99)
+SENDING_RADIUS_TIME = 1  # second
 
 
 def delay():
@@ -41,6 +42,22 @@ class MacawNode(wsp.Node):
         elif self.id == 57:
             self.scene.nodecolor(self.id, 1, 1, 0)
             self.scene.nodewidth(self.id, 2)
+
+    # Taken from the library but adjusted to transmission radius will remain active longer
+    def send(self, dest, *args, **kwargs):
+        obj_id = self.scene.circle(
+            self.pos[0], self.pos[1],
+            self.tx_range,
+            line="wsnsimpy:tx")
+        super().send(dest, *args, **kwargs)
+        self.delayed_exec(SENDING_RADIUS_TIME, self.scene.delshape, obj_id)
+        if dest is not wsp.BROADCAST_ADDR:
+            destPos = self.sim.nodes[dest].pos
+            obj_id = self.scene.line(
+                self.pos[0], self.pos[1],
+                destPos[0], destPos[1],
+                line="wsnsimpy:unicast")
+            self.delayed_exec(SENDING_RADIUS_TIME, self.scene.delshape, obj_id)
 
     def send_rts(self, target):
         self.send(wsp.BROADCAST_ADDR, msg='RTS', target=target)
