@@ -1,9 +1,17 @@
 import random
+import time
+
 import wsnsimpy.wsnsimpy_tk as wsp
 
-SOURCE = 12  # random.randint(0, 10)
-DEST = 36  # random.randint(90, 99)
+SOURCE = 12
+DEST = 36
+COLLISION_SOURCE = 89
+COLLISION_DEST = 57
+NON_COLLISION_SOURCE = 90
+NON_COLLISION_DEST = 72
+
 SENDING_RADIUS_TIME = 1  # second
+TX_CIRCLE_DELTA = 50  # how close are subsequent TX circles to one another
 
 
 def delay():
@@ -29,35 +37,49 @@ class MacawNode(wsp.Node):
             self.scene.nodecolor(self.id, 1, 0, 0)
             self.scene.nodewidth(self.id, 2)
 
-        else:
-            self.scene.nodecolor(self.id, .7, .7, .7)
-
-        if self.id == 89:
-            self.scene.nodecolor(self.id, 0, 1, 1)
+        elif self.id == COLLISION_SOURCE:
+            self.scene.nodecolor(self.id, 0, .8, 1)
             self.scene.nodewidth(self.id, 2)
             yield self.timeout(delay() * 5)
-            self.log(f"Send RTS to {57}")
-            self.send_rts(target=57)
+            self.log(f"Send RTS to {COLLISION_DEST}")
+            self.send_rts(target=COLLISION_DEST)
 
-        elif self.id == 57:
-            self.scene.nodecolor(self.id, 1, 1, 0)
+        elif self.id == COLLISION_DEST:
+            self.scene.nodecolor(self.id, 1, .8, 0)
             self.scene.nodewidth(self.id, 2)
+
+        elif self.id == NON_COLLISION_SOURCE:
+            self.scene.nodecolor(self.id, 0, .5, .7)
+            self.scene.nodewidth(self.id, 2)
+            yield self.timeout(delay())
+            self.log(f"Send RTS to {NON_COLLISION_DEST}")
+            self.send_rts(target=NON_COLLISION_DEST)
+
+        elif self.id == NON_COLLISION_DEST:
+            self.scene.nodecolor(self.id, .9, .7, .2)
+            self.scene.nodewidth(self.id, 2)
+
+        else:
+            self.scene.nodecolor(self.id, .5, .5, .5)
 
     # Taken from the library but adjusted to transmission radius will remain active longer
     def send(self, dest, *args, **kwargs):
-        obj_id = self.scene.circle(
-            self.pos[0], self.pos[1],
-            self.tx_range,
-            line="wsnsimpy:tx")
-        super().send(dest, *args, **kwargs)
-        self.delayed_exec(SENDING_RADIUS_TIME, self.scene.delshape, obj_id)
-        if dest is not wsp.BROADCAST_ADDR:
-            destPos = self.sim.nodes[dest].pos
-            obj_id = self.scene.line(
+        circles = []
+
+        for circle_diam in range(0, self.tx_range + TX_CIRCLE_DELTA, TX_CIRCLE_DELTA):
+            circle = self.scene.circle(
                 self.pos[0], self.pos[1],
-                destPos[0], destPos[1],
-                line="wsnsimpy:unicast")
-            self.delayed_exec(SENDING_RADIUS_TIME, self.scene.delshape, obj_id)
+                circle_diam,
+                line="wsnsimpy:tx")
+            circles.append(circle)
+
+        super().send(dest, *args, **kwargs)
+
+        self.delayed_exec(SENDING_RADIUS_TIME, self.clear_circles, circles)
+
+    def clear_circles(self, circles):
+        for circle in circles:
+            self.scene.delshape(circle)
 
     def send_rts(self, target):
         self.send(wsp.BROADCAST_ADDR, msg='RTS', target=target)
@@ -149,7 +171,7 @@ class MacawNode(wsp.Node):
                 self.log(f"Received ACK from {sender}")
 
             elif self._locked and self._rrts_target:
-                yield self.timeout(delay())
+                yield self.timeout(delay() * 2)
                 self.log(f"Send RRTS to {self._rrts_target}")
                 self._locked = False
                 self.send_rrts()
