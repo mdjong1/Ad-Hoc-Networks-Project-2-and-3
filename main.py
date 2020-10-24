@@ -61,19 +61,19 @@ class MacawNode(wsp.Node):
         self.send(wsp.BROADCAST_ADDR, msg='RRTS', target=self._rrts_target)
         self._rrts_target = None
 
-    def start_send_data(self):
+    def start_send_data(self, target):
         self.scene.clearlinks()
         seq = 1
 
         data_length = random.randint(5, 10)
 
-        self.log(f"Send DS to {DEST} with length {data_length}")
-        self.send_ds(target=DEST, length=data_length)
+        self.log(f"Send DS to {target} with length {data_length}")
+        self.send_ds(target=target, length=data_length)
 
         for _ in range(data_length):
             yield self.timeout(1)
-            self.log(f"Send DATA to {DEST} with seq {seq}")
-            self.send_data(target=DEST, seq=seq)
+            self.log(f"Send DATA to {target} with seq {seq}")
+            self.send_data(target=target, seq=seq)
             seq += 1
 
     def on_receive(self, sender, msg, **kwargs):
@@ -105,7 +105,7 @@ class MacawNode(wsp.Node):
                 self.log(f"Received CTS from {sender}")
                 yield self.timeout(5)
                 self.log("Start sending data")
-                self.start_process(self.start_send_data())
+                self.start_process(self.start_send_data(target=sender))
 
             else:
                 self._locked = True
