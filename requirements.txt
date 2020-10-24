@@ -1,0 +1,2 @@
+simpy==4.0.1
+wsnsimpy==0.2.5
