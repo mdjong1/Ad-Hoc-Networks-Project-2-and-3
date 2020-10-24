@@ -31,14 +31,14 @@ class MacawNode(wsp.Node):
         else:
             self.scene.nodecolor(self.id, .7, .7, .7)
 
-        if self.id == 77:
+        if self.id == 89:
             self.scene.nodecolor(self.id, 0, 1, 1)
             self.scene.nodewidth(self.id, 2)
             yield self.timeout(10)
-            self.log(f"Send RTS to {46}")
-            self.send_rts(target=46)
+            self.log(f"Send RTS to {57}")
+            self.send_rts(target=57)
 
-        elif self.id == 46:
+        elif self.id == 57:
             self.scene.nodecolor(self.id, 1, 1, 0)
             self.scene.nodewidth(self.id, 2)
 
