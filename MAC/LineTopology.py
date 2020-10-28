@@ -21,7 +21,7 @@ class LineTopology:
 
 if __name__ == '__main__':
     simulator = wsp.Simulator(
-        until=30,
+        until=60,
         timescale=1,
         visual=True,
         terrain_size=(650, 650),
