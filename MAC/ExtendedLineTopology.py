@@ -2,19 +2,21 @@ from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 
 
-class LineTopology:
+class ExtendedLineTopology:
 
     def __init__(self):
         self.nodes = []
 
     def set_nodes(self):
-        for x in range(3):
-            self.nodes.append(simulator.add_node(MacawNode, (225 + (100 * x), 200)))
+        for x in range(4):
+            self.nodes.append(simulator.add_node(MacawNode, (175 + (100 * x), 200)))
             self.nodes[x].tx_range = 100
 
     def run(self):
-        target = self.nodes[1].id
-        self.nodes[0].send_rts(target)
+        target = self.nodes[0].id
+        self.nodes[1].send_rts(target)
+
+        target = self.nodes[3].id
         self.nodes[2].send_rts(target)
 
 
@@ -24,10 +26,10 @@ if __name__ == '__main__':
         timescale=1,
         visual=True,
         terrain_size=(650, 650),
-        title="MACAW Line Topology Demo"
+        title="MACAW Extended Line Topology Demo"
     )
 
-    lineTop = LineTopology()
+    lineTop = ExtendedLineTopology()
     lineTop.set_nodes()
     lineTop.run()
 
