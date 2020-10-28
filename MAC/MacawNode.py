@@ -82,22 +82,28 @@ class MacawNode(wsp.Node):
             self.scene.delshape(circle)
 
     def send_rts(self, target):
+        self.log(f"Send RTS to {target}")
         self.send(wsp.BROADCAST_ADDR, msg='RTS', target=target)
 
     def send_cts(self, target):
+        self.log(f"Send CTS to {target}")
         self.send(wsp.BROADCAST_ADDR, msg='CTS', target=target)
 
     def send_ds(self, target, length):
+        self.log(f"Send DS to {target}")
         self.send(wsp.BROADCAST_ADDR, msg='DS', target=target, length=length)
 
     def send_data(self, target, seq):
+        self.log(f"Send DATA to {target}")
         self.send(wsp.BROADCAST_ADDR, msg='DATA', target=target, seq=seq)
 
     def send_ack(self, target):
+        self.log(f"Send ACK to {target}")
         self.send(wsp.BROADCAST_ADDR, msg='ACK', target=target)
 
     def send_rrts(self):
-        if(self._rrts_target is not None):
+        if self._rrts_target is not None:
+            self.log(f"Send RRTS to {self._rrts_target}")
             self.send(wsp.BROADCAST_ADDR, msg='RRTS', target=self._rrts_target)
             self._rrts_target = None
 
@@ -107,12 +113,10 @@ class MacawNode(wsp.Node):
 
         data_length = random.randint(5, 10)
 
-        self.log(f"Send DS to {target} with length {data_length}")
         self.send_ds(target=target, length=data_length)
 
         for _ in range(data_length):
             yield self.timeout(1)
-            self.log(f"Send DATA to {target} with seq {seq}")
             self.send_data(target=target, seq=seq)
             seq += 1
 
@@ -128,7 +132,6 @@ class MacawNode(wsp.Node):
 
         if msg == 'RRTS' and self.id == target:
             yield self.timeout(delay())
-            self.log(f"Send RTS to {sender}")
             self.send_rts(target=sender)
 
         elif msg == 'RTS':
@@ -143,7 +146,7 @@ class MacawNode(wsp.Node):
                 # self.scene.clearlinks()
 
                 yield self.timeout(delay())
-                self.log(f"Send CTS to {sender}")
+
                 self.send_cts(target=sender)
 
             elif self.id == target and self._rts_received and not self._rrts_target:
@@ -177,7 +180,6 @@ class MacawNode(wsp.Node):
                     self.log(f"Received all packets! {seq} of {self._data_length}")
 
                     yield self.timeout(delay())
-                    self.log(f"Send ACK to {sender}")
                     self.send_ack(target=sender)
                     self.send_rrts()
 
@@ -188,5 +190,4 @@ class MacawNode(wsp.Node):
 
             elif self._rts_received and self._rrts_target:
                 yield self.timeout(delay() * 2)
-                self.log(f"Send RRTS to {self._rrts_target}")
                 self._rts_received = False
