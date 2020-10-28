@@ -6,7 +6,6 @@ class LineTopology:
 
     def __init__(self):
         self.nodes = []
-        pass
 
     def set_nodes(self):
         for x in range(3):
@@ -21,7 +20,7 @@ class LineTopology:
 
 if __name__ == '__main__':
     simulator = wsp.Simulator(
-        until=60,
+        until=40,
         timescale=1,
         visual=True,
         terrain_size=(650, 650),
