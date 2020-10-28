@@ -121,12 +121,12 @@ class MacawNode(wsp.Node):
 
         # Detecting collisions!
         if self._in_data_transition:
-            if(msg != "DATA" and msg != "ACK"):
+            if msg != "DATA" and msg != "ACK":
                 self.log(f"Collision!!!!!!")
-            elif(target != self.id):
+            elif target != self.id:
                 self.log(f"Collision!!!!!!")
 
-        if msg == 'RRTS' and self.id is target:
+        if msg == 'RRTS' and self.id == target:
             yield self.timeout(delay())
             self.log(f"Send RTS to {sender}")
             self.send_rts(target=sender)
@@ -134,7 +134,7 @@ class MacawNode(wsp.Node):
         elif msg == 'RTS':
             # self.scene.addlink(sender, self.id, "parent")
 
-            if self.id is target and not self._rts_received:
+            if self.id == target and not self._rts_received:
                 # Cannot send any other RTS if already send one
                 self._rts_received = True
                 self.log(f"Received RTS from {sender}")
@@ -146,12 +146,12 @@ class MacawNode(wsp.Node):
                 self.log(f"Send CTS to {sender}")
                 self.send_cts(target=sender)
 
-            elif self.id is target and self._rts_received and not self._rrts_target:
+            elif self.id == target and self._rts_received and not self._rrts_target:
                 self.log(f"Got RTS while locked")
                 self._rrts_target = sender
 
         elif msg == 'CTS':
-            if self.id is target:
+            if self.id == target:
                 self._in_data_transition = True
 
                 self.log(f"Received CTS from {sender}")
@@ -160,7 +160,7 @@ class MacawNode(wsp.Node):
                 self.start_process(self.start_send_data(target=sender))
 
         elif msg == 'DS':
-            if self.id is target:
+            if self.id == target:
                 self._in_data_transition = True
                 self._rts_received = False
                 length = kwargs['length']
@@ -168,21 +168,21 @@ class MacawNode(wsp.Node):
                 self._data_length = length
 
         elif msg == 'DATA':
-            if self.id is target:
+            if self.id == target:
                 seq = kwargs['seq']
                 self.log(f"Got DATA from {sender} with seq {seq}")
 
                 if seq == self._data_length:
                     self._in_data_transition = False
-                    self.log(
-                        f"Received all packets! {seq} of {self._data_length}")
+                    self.log(f"Received all packets! {seq} of {self._data_length}")
+
                     yield self.timeout(delay())
                     self.log(f"Send ACK to {sender}")
                     self.send_ack(target=sender)
                     self.send_rrts()
 
         elif msg == 'ACK':
-            if self.id is target:
+            if self.id == target:
                 self._in_data_transition = False
                 self.log(f"Received ACK from {sender}")
 

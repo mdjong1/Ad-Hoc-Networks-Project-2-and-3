@@ -2,13 +2,13 @@ from Simulator import simulator
 from MacawNode import MacawNode
 
 
-class LineTopology():
+class LineTopology:
 
     def __init__(self):
         self.nodes = []
         pass
 
-    def setNodes(self):
+    def set_nodes(self):
         for x in range(3):
             self.nodes.append(simulator.add_node(
                 MacawNode, (50 + (100 * x), 50)))
@@ -22,6 +22,6 @@ class LineTopology():
 
 if __name__ == '__main__':
     lineTop = LineTopology()
-    lineTop.setNodes()
+    lineTop.set_nodes()
     lineTop.run()
     simulator.run()

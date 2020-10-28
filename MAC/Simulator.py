@@ -1,6 +1,4 @@
 import wsnsimpy.wsnsimpy_tk as wsp
-from MacawNode import MacawNode
-
 
 simulator = wsp.Simulator(
     until=60,
