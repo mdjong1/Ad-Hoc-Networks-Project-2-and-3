@@ -83,6 +83,7 @@ class MyNode(wsp.Node):
             # Draw arrow to parent as defined in __main__
             self.scene.addlink(sender,self.id,"parent")
 
+
             # If destination receives the rreq, reply with rreply
             if self.id is DEST:
                 self.log(f"Receive RREQ from {src}")
