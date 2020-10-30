@@ -38,11 +38,15 @@ class Message:
         self.hops = 0
 
     @classmethod
-    def from_other(cls):
+    def from_other(cls, message):
         """
-        :param Message cls: Message object to clone
+        :param Message cls: Class
+        :param Message message: Message object to clone
         """
-        return Message(cls.type, cls.src, cls.seq, cls.dest, cls.hops + 1)
+        return Message(message.type, message.src, message.seq, message.dest, message.hops + 1)
+
+    def hop(self):
+        return Message(self.type, self.src, self.seq, self.dest, self.hops + 1)
 
 
 class MyNode(wsp.Node):
@@ -66,36 +70,39 @@ class MyNode(wsp.Node):
     def run(self):
         # If node is source, make blue and bold
         if self.id is SOURCE:
-            self.scene.nodecolor(self.id,0,0,1)
-            self.scene.nodewidth(self.id,2)
+            self.scene.nodecolor(self.id, 0, 0, 1)
+            self.scene.nodewidth(self.id, 2)
             yield self.timeout(1)
             # Start by sending rreq
-            self.send_rreq(self.id)
+            self.send_rreq(Message(MTypes.RREQ, self.id, 0, DEST))
         # If node is destination, make red and bold
         elif self.id is DEST:
-            self.scene.nodecolor(self.id,1,0,0)
-            self.scene.nodewidth(self.id,2)
+            self.scene.nodecolor(self.id, 1, 0, 0)
+            self.scene.nodewidth(self.id, 2)
         # Else, make gray
         else:
-            self.scene.nodecolor(self.id,.7,.7,.7)
+            self.scene.nodecolor(self.id, .7, .7, .7)
 
-    def send_rreq(self, src):
+    def send_rreq(self, msg):
         """
-        Broadcast rreq to all nodes in TX range
-        :param int src: Id of the node that sends the rreq
+        Broadcast RREQ to all nodes in TX range
+        :param Message msg: Message to send
         """
-        message = Message(MTypes.RREQ, src, 0, DEST)
-        self.send(wsp.BROADCAST_ADDR, msg=message, src=src)
+        message = msg.hop()
+        self.send(wsp.BROADCAST_ADDR, msg=message)
 
-
-    def send_rreply(self, src):
+    def send_rreply(self, msg):
+        """
+        Send RREP to next link to destination
+        :param Message msg: Message to send
+        """
         # If we're a node in the path, make node green and bold
         if self.id is not DEST:
-            self.scene.nodecolor(self.id,0,.7,0)
-            self.scene.nodewidth(self.id,2)
+            self.scene.nodecolor(self.id, 0, .7, 0)
+            self.scene.nodewidth(self.id, 2)
         # Forward rreply to previous link in the "routing table"
-        message = Message(MTypes.RREP, src, 0, SOURCE)
-        self.send(self.prev, msg=message, src=src)
+        message = msg.hop()
+        self.send(self.prev, msg=message)
 
     def start_send_data(self):
         # Remove visual links/pointers
@@ -105,15 +112,20 @@ class MyNode(wsp.Node):
         while True:
             yield self.timeout(1)
             self.log(f"Send data to {DEST} with seq {seq}")
-            self.send_data(self.id, seq)
+            message = Message(MTypes.DATA, self.id, seq, DEST)
+            self.send_data(message)
             seq += 1
 
-    def send_data(self, src, seq):
-        self.log(f"Forward data with seq {seq} via {self.next}")
-        message = Message(MTypes.DATA, src, seq, DEST)
-        self.send(self.next, msg=message, src=src, seq=seq)
+    def send_data(self, msg):
+        """
+        Send data to next link to destination
+        :param Message msg: Message to send
+        """
+        self.log(f"Forward data with seq {msg.seq} via {self.next}")
+        message = msg.hop()
+        self.send(self.next, msg=message)
 
-    def on_receive(self, sender, msg, src, **kwargs):
+    def on_receive(self, sender, msg, **kwargs):
         """
         All responses to a particular cls (`msg`) type
         :param int sender: Sender id
@@ -127,25 +139,25 @@ class MyNode(wsp.Node):
             # Make prev pointer to sender.
             self.prev = sender
             # Draw arrow to parent as defined in __main__
-            self.scene.addlink(sender,self.id,"parent")
+            self.scene.addlink(sender, self.id, "parent")
 
 
             # If destination receives the rreq, reply with rreply
             if self.id is msg.dest:
-                self.log(f"Receive RREQ from {src}")
+                self.log(f"Receive RREQ from {msg.src}")
                 yield self.timeout(5)
-                self.log(f"Send RREP to {src}")
-                self.send_rreply(self.id)
+                self.log(f"Send RREP to {msg.src}")
+                self.send_rreply(Message(MTypes.RREP, self.id, 0, SOURCE))
             # If not destination, broadcast rreq again (with random delay)
             else:
                 yield self.timeout(delay())
-                self.send_rreq(src)
+                self.send_rreq(msg)
 
         elif msg.type == MTypes.RREP:
             self.next = sender
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
-                self.log(f"Receive RREP from {src}")
+                self.log(f"Receive RREP from {msg.src}")
                 yield self.timeout(5)
                 self.log("Start sending data")
                 # Start new process to send data and keep simulating at the same time
@@ -153,16 +165,15 @@ class MyNode(wsp.Node):
             # If not, forward rreply
             else:
                 yield self.timeout(.2)
-                self.send_rreply(src)
+                self.send_rreply(msg)
 
         elif msg.type == MTypes.DATA:
             # If not destination, forward data
             if self.id is not msg.dest:
                 yield self.timeout(.2)
-                self.send_data(src,**kwargs)
+                self.send_data(msg)
             else:
-                seq = msg.seq
-                self.log(f"Got data from {src} with seq {seq}")
+                self.log(f"Got data from {msg.src} with seq {msg.seq}")
 
 
 if __name__ == '__main__':
