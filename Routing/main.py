@@ -87,6 +87,7 @@ class MyNode(wsp.Node):
         message = Message(MTypes.RREQ, src, 0, DEST)
         self.send(wsp.BROADCAST_ADDR, msg=message, src=src)
 
+
     def send_rreply(self, src):
         # If we're a node in the path, make node green and bold
         if self.id is not DEST:
