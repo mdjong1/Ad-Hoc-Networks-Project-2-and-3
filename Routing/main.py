@@ -1,13 +1,48 @@
 import random
 import wsnsimpy.wsnsimpy_tk as wsp
+from enum import Enum
 
 SOURCE = 1
 DEST   = 99
 
 
+class MTypes(Enum):
+    """Enum for possible message types"""
+    RREQ = 1
+    RREP = 2
+    RERR = 3
+    DATA = 4
+
+
 def delay(a=0.2, b=0.8):
     """Random delay between `a=0.2` and `b=0.8`"""
     return random.uniform(a, b)
+
+
+class Message:
+    """AODV message class"""
+    def __init__(self, type, src, seq, dest, hops=0):
+        """
+        :param MTypes type: Message type
+        :param int src: Source ID
+        :param int seq: Sequence ID
+        :param int dest: Destination ID
+        :param int hops: Number of hops taken
+        """
+        # if type not in message_types:
+        #     raise Exception(f"Message type ${type} not supported, possible options: ${repr(message_types)}.")
+        self.type = type
+        self.src = src
+        self.seq = seq
+        self.dest = dest
+        self.hops = 0
+
+    @classmethod
+    def from_other(cls):
+        """
+        :param Message cls: Message object to clone
+        """
+        return Message(cls.type, cls.src, cls.seq, cls.dest, cls.hops + 1)
 
 
 class MyNode(wsp.Node):
@@ -44,17 +79,22 @@ class MyNode(wsp.Node):
         else:
             self.scene.nodecolor(self.id,.7,.7,.7)
 
-    def send_rreq(self,src):
-        """Broadcast rreq to all nodes in TX range"""
-        self.send(wsp.BROADCAST_ADDR, msg='rreq', src=src)
+    def send_rreq(self, src):
+        """
+        Broadcast rreq to all nodes in TX range
+        :param int src: Id of the node that sends the rreq
+        """
+        message = Message(MTypes.RREQ, src, 0, DEST)
+        self.send(wsp.BROADCAST_ADDR, msg=message, src=src)
 
-    def send_rreply(self,src):
+    def send_rreply(self, src):
         # If we're a node in the path, make node green and bold
         if self.id is not DEST:
             self.scene.nodecolor(self.id,0,.7,0)
             self.scene.nodewidth(self.id,2)
         # Forward rreply to previous link in the "routing table"
-        self.send(self.prev, msg='rreply', src=src)
+        message = Message(MTypes.RREP, src, 0, SOURCE)
+        self.send(self.prev, msg=message, src=src)
 
     def start_send_data(self):
         # Remove visual links/pointers
@@ -67,14 +107,19 @@ class MyNode(wsp.Node):
             self.send_data(self.id, seq)
             seq += 1
 
-    def send_data(self,src,seq):
+    def send_data(self, src, seq):
         self.log(f"Forward data with seq {seq} via {self.next}")
-        self.send(self.next, msg='data', src=src, seq=seq)
+        message = Message(MTypes.DATA, src, seq, DEST)
+        self.send(self.next, msg=message, src=src, seq=seq)
 
     def on_receive(self, sender, msg, src, **kwargs):
-        """All responses to a particular message (`msg`) type"""
+        """
+        All responses to a particular cls (`msg`) type
+        :param int sender: Sender id
+        :param Message msg: Received message
+        """
 
-        if msg == 'rreq':
+        if msg.type == MTypes.RREQ:
             # If we already received an rreq before, ignore
             if self.prev is not None: return
 
@@ -85,7 +130,7 @@ class MyNode(wsp.Node):
 
 
             # If destination receives the rreq, reply with rreply
-            if self.id is DEST:
+            if self.id is msg.dest:
                 self.log(f"Receive RREQ from {src}")
                 yield self.timeout(5)
                 self.log(f"Send RREP to {src}")
@@ -95,10 +140,10 @@ class MyNode(wsp.Node):
                 yield self.timeout(delay())
                 self.send_rreq(src)
 
-        elif msg == 'rreply':
+        elif msg.type == MTypes.RREP:
             self.next = sender
             # If we're the source, route is established. Start the data sending process
-            if self.id is SOURCE:
+            if self.id is msg.dest:
                 self.log(f"Receive RREP from {src}")
                 yield self.timeout(5)
                 self.log("Start sending data")
@@ -109,13 +154,13 @@ class MyNode(wsp.Node):
                 yield self.timeout(.2)
                 self.send_rreply(src)
 
-        elif msg == 'data':
+        elif msg.type == MTypes.DATA:
             # If not destination, forward data
-            if self.id is not DEST:
+            if self.id is not msg.dest:
                 yield self.timeout(.2)
                 self.send_data(src,**kwargs)
             else:
-                seq = kwargs['seq']
+                seq = msg.seq
                 self.log(f"Got data from {src} with seq {seq}")
 
 
