@@ -3,7 +3,7 @@ import wsnsimpy.wsnsimpy_tk as wsp
 from enum import Enum
 
 SOURCE = 1
-DEST   = 99
+DEST = 99
 
 
 class MTypes(Enum):
@@ -21,7 +21,8 @@ def delay(a=0.2, b=0.8):
 
 class Message:
     """AODV message class"""
-    def __init__(self, type, src, seq, dest, hops=0):
+
+    def __init__(self, type, src, seq, dest, hops):
         """
         :param MTypes type: Message type
         :param int src: Source ID
@@ -57,8 +58,11 @@ class MyNode(wsp.Node):
         super().__init__(sim, id, pos)
 
         # "routing table"
+        """
         self.next = None
         self.prev = None
+        """
+        self.table = {id: {"next": id, "seq": 0, "hop": 0}}
 
     def init(self):
         super().init()
@@ -66,36 +70,35 @@ class MyNode(wsp.Node):
     def run(self):
         # If node is source, make blue and bold
         if self.id is SOURCE:
-            self.scene.nodecolor(self.id,0,0,1)
-            self.scene.nodewidth(self.id,2)
+            self.scene.nodecolor(self.id, 0, 0, 1)
+            self.scene.nodewidth(self.id, 2)
             yield self.timeout(1)
             # Start by sending rreq
             self.send_rreq(self.id)
         # If node is destination, make red and bold
         elif self.id is DEST:
-            self.scene.nodecolor(self.id,1,0,0)
-            self.scene.nodewidth(self.id,2)
+            self.scene.nodecolor(self.id, 1, 0, 0)
+            self.scene.nodewidth(self.id, 2)
         # Else, make gray
         else:
-            self.scene.nodecolor(self.id,.7,.7,.7)
+            self.scene.nodecolor(self.id, .7, .7, .7)
 
     def send_rreq(self, src):
         """
         Broadcast rreq to all nodes in TX range
         :param int src: Id of the node that sends the rreq
         """
-        message = Message(MTypes.RREQ, src, 0, DEST)
+        message = Message(MTypes.RREQ, src, 0, DEST, hops=self.table[src]["hop"])
         self.send(wsp.BROADCAST_ADDR, msg=message, src=src)
-
 
     def send_rreply(self, src):
         # If we're a node in the path, make node green and bold
         if self.id is not DEST:
-            self.scene.nodecolor(self.id,0,.7,0)
-            self.scene.nodewidth(self.id,2)
+            self.scene.nodecolor(self.id, 0, .7, 0)
+            self.scene.nodewidth(self.id, 2)
         # Forward rreply to previous link in the "routing table"
-        message = Message(MTypes.RREP, src, 0, SOURCE)
-        self.send(self.prev, msg=message, src=src)
+        message = Message(MTypes.RREP, src, 0, SOURCE, hops=self.table[src]["hop"])
+        self.send(self.table[src]["next"], msg=message, src=src)
 
     def start_send_data(self):
         # Remove visual links/pointers
@@ -109,9 +112,10 @@ class MyNode(wsp.Node):
             seq += 1
 
     def send_data(self, src, seq):
-        self.log(f"Forward data with seq {seq} via {self.next}")
+        nxt = self.table[DEST]["next"]
+        self.log(f"Forward data with seq {seq} via {nxt}")
         message = Message(MTypes.DATA, src, seq, DEST)
-        self.send(self.next, msg=message, src=src, seq=seq)
+        self.send(self.table[DEST]["next"], msg=message, src=src, seq=seq)
 
     def on_receive(self, sender, msg, src, **kwargs):
         """
@@ -122,13 +126,22 @@ class MyNode(wsp.Node):
 
         if msg.type == MTypes.RREQ:
             # If we already received an rreq before, ignore
-            if self.prev is not None: return
 
+            if sender in self.table[src]:
+                return
+            else:
+                self.table[src] ={}
+                self.table[src]["next"] = sender
+                self.table[src]["seq"] = msg.seq
+                self.table[src]["hop"] = msg.hops+1
+
+            """
             # Make prev pointer to sender.
             self.prev = sender
-            # Draw arrow to parent as defined in __main__
-            self.scene.addlink(sender,self.id,"parent")
+            """
 
+            # Draw arrow to parent as defined in __main__
+            self.scene.addlink(sender, self.id, "parent")
 
             # If destination receives the rreq, reply with rreply
             if self.id is msg.dest:
@@ -142,7 +155,14 @@ class MyNode(wsp.Node):
                 self.send_rreq(src)
 
         elif msg.type == MTypes.RREP:
+            """
             self.next = sender
+            """
+            self.table[src] = {}
+            self.table[src]["next"] = sender
+            self.table[src]["seq"] = msg.seq
+            self.table[src]["hop"] = msg.hops + 1
+
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
                 self.log(f"Receive RREP from {src}")
@@ -159,7 +179,7 @@ class MyNode(wsp.Node):
             # If not destination, forward data
             if self.id is not msg.dest:
                 yield self.timeout(.2)
-                self.send_data(src,**kwargs)
+                self.send_data(src, **kwargs)
             else:
                 seq = msg.seq
                 self.log(f"Got data from {src} with seq {seq}")
