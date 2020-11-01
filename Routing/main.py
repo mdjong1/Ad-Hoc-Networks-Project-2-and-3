@@ -100,8 +100,6 @@ class MyNode(wsp.Node):
         Send RREP to next link to destination
         :param Message msg: Message to send
         """
-
-    def send_rreply(self, msg):
         # If we're a node in the path, make node green and bold
         if self.id is not DEST:
             self.scene.nodecolor(self.id, 0, .7, 0)
@@ -155,8 +153,6 @@ class MyNode(wsp.Node):
             """
             # Make prev pointer to sender.
             self.prev = sender
-            # Draw arrow to parent as defined in __main__
-            self.scene.addlink(sender, self.id, "parent")
             """
 
             # Draw arrow to parent as defined in __main__
@@ -198,7 +194,7 @@ class MyNode(wsp.Node):
             # If not destination, forward data
             if self.id is not msg.dest:
                 yield self.timeout(.2)
-                self.send_data(src, **kwargs)
+                self.send_data(msg)
             else:
                 self.log(f"Got data from {msg.src} with seq {msg.seq}")
 
