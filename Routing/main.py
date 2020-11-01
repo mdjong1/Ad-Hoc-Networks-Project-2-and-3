@@ -66,7 +66,7 @@ class MyNode(wsp.Node):
         self.next = None
         self.prev = None
         """
-        self.table = {id: {"dest": id, "next": id, "seq": 0, "hop": 0}}
+        self.table = {id: {"dest": id, "next": id, "seq": 0, "hops": 0}}
 
     def init(self):
         super().init()
@@ -141,7 +141,10 @@ class MyNode(wsp.Node):
             # If we already received an rreq before, ignore
 
             if msg.src in self.table:
-                return
+                if self.table[msg.src]["hops"] > msg.hops:
+                    self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+                else:
+                    return
             else:
                 self.table[msg.src] ={"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
 
@@ -155,7 +158,7 @@ class MyNode(wsp.Node):
                 yield self.timeout(5)
                 self.log(f"Send RREP to {msg.src}")
                 self.send_rreply(Message(MTypes.RREP, self.id, 0, SOURCE))
-                print(self.table)
+
             # If not destination, broadcast rreq again (with random delay)
             else:
                 yield self.timeout(delay())
@@ -168,7 +171,7 @@ class MyNode(wsp.Node):
             self.table[msg.src] = {}
             self.table[msg.src]["next"] = sender
             self.table[msg.src]["seq"] = msg.seq
-            self.table[msg.src]["hop"] = msg.hops + 1
+            self.table[msg.src]["hop"] = msg.hops
 
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
