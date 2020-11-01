@@ -3,7 +3,7 @@ import wsnsimpy.wsnsimpy_tk as wsp
 from enum import Enum
 
 SOURCE = 1
-DEST   = 99
+DEST = 99
 
 
 class MTypes(Enum):
@@ -21,6 +21,7 @@ def delay(a=0.2, b=0.8):
 
 class Message:
     """AODV message class"""
+
     def __init__(self, type, src, seq, dest, hops=0):
         """
         :param MTypes type: Message type
@@ -35,7 +36,7 @@ class Message:
         self.src = src
         self.seq = seq
         self.dest = dest
-        self.hops = 0
+        self.hops = hops
 
     @classmethod
     def from_other(cls, message):
@@ -61,8 +62,11 @@ class MyNode(wsp.Node):
         super().__init__(sim, id, pos)
 
         # "routing table"
+        """
         self.next = None
         self.prev = None
+        """
+        self.table = {id: {"next": id, "seq": 0, "hop": 0}}
 
     def init(self):
         super().init()
@@ -96,13 +100,15 @@ class MyNode(wsp.Node):
         Send RREP to next link to destination
         :param Message msg: Message to send
         """
+
+    def send_rreply(self, msg):
         # If we're a node in the path, make node green and bold
         if self.id is not DEST:
             self.scene.nodecolor(self.id, 0, .7, 0)
             self.scene.nodewidth(self.id, 2)
         # Forward rreply to previous link in the "routing table"
         message = msg.hop()
-        self.send(self.prev, msg=message)
+        self.send(self.table[msg.src]["next"], msg=message)
 
     def start_send_data(self):
         # Remove visual links/pointers
@@ -121,9 +127,10 @@ class MyNode(wsp.Node):
         Send data to next link to destination
         :param Message msg: Message to send
         """
-        self.log(f"Forward data with seq {msg.seq} via {self.next}")
+        nxt = self.table[DEST]["next"]
+        self.log(f"Forward data with seq {msg.seq} via {nxt}")
         message = msg.hop()
-        self.send(self.next, msg=message)
+        self.send(self.table[DEST]["next"], msg=message)
 
     def on_receive(self, sender, msg, **kwargs):
         """
@@ -134,13 +141,26 @@ class MyNode(wsp.Node):
 
         if msg.type == MTypes.RREQ:
             # If we already received an rreq before, ignore
-            if self.prev is not None: return
 
+            if msg.src in self.table:
+                if sender in self.table[msg.src]:
+                    return
+            else:
+                self.table[msg.src] ={}
+                self.table[msg.src]["dest"] = msg.src
+                self.table[msg.src]["next"] = sender
+                self.table[msg.src]["seq"] = msg.seq
+                self.table[msg.src]["hop"] = msg.hops+1
+
+            """
             # Make prev pointer to sender.
             self.prev = sender
             # Draw arrow to parent as defined in __main__
             self.scene.addlink(sender, self.id, "parent")
+            """
 
+            # Draw arrow to parent as defined in __main__
+            self.scene.addlink(sender, self.id, "parent")
 
             # If destination receives the rreq, reply with rreply
             if self.id is msg.dest:
@@ -154,7 +174,14 @@ class MyNode(wsp.Node):
                 self.send_rreq(msg)
 
         elif msg.type == MTypes.RREP:
+            """
             self.next = sender
+            """
+            self.table[msg.src] = {}
+            self.table[msg.src]["next"] = sender
+            self.table[msg.src]["seq"] = msg.seq
+            self.table[msg.src]["hop"] = msg.hops + 1
+
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
                 self.log(f"Receive RREP from {msg.src}")
@@ -171,7 +198,7 @@ class MyNode(wsp.Node):
             # If not destination, forward data
             if self.id is not msg.dest:
                 yield self.timeout(.2)
-                self.send_data(msg)
+                self.send_data(src, **kwargs)
             else:
                 self.log(f"Got data from {msg.src} with seq {msg.seq}")
 
