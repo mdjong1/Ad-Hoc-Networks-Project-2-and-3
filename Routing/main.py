@@ -66,7 +66,7 @@ class MyNode(wsp.Node):
         self.next = None
         self.prev = None
         """
-        self.table = {id: {"next": id, "seq": 0, "hop": 0}}
+        self.table = {id: {"dest": id, "next": id, "seq": 0, "hop": 0}}
 
     def init(self):
         super().init()
@@ -101,12 +101,12 @@ class MyNode(wsp.Node):
         :param Message msg: Message to send
         """
         # If we're a node in the path, make node green and bold
-        if self.id is not DEST:
+        if self.id is not msg.dest:
             self.scene.nodecolor(self.id, 0, .7, 0)
             self.scene.nodewidth(self.id, 2)
         # Forward rreply to previous link in the "routing table"
         message = msg.hop()
-        self.send(self.table[msg.src]["next"], msg=message)
+        self.send(self.table[msg.dest]["next"], msg=message)
 
     def start_send_data(self):
         # Remove visual links/pointers
@@ -141,19 +141,10 @@ class MyNode(wsp.Node):
             # If we already received an rreq before, ignore
 
             if msg.src in self.table:
-                if sender in self.table[msg.src]:
-                    return
+                return
             else:
-                self.table[msg.src] ={}
-                self.table[msg.src]["dest"] = msg.src
-                self.table[msg.src]["next"] = sender
-                self.table[msg.src]["seq"] = msg.seq
-                self.table[msg.src]["hop"] = msg.hops+1
+                self.table[msg.src] ={"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
 
-            """
-            # Make prev pointer to sender.
-            self.prev = sender
-            """
 
             # Draw arrow to parent as defined in __main__
             self.scene.addlink(sender, self.id, "parent")
@@ -164,6 +155,7 @@ class MyNode(wsp.Node):
                 yield self.timeout(5)
                 self.log(f"Send RREP to {msg.src}")
                 self.send_rreply(Message(MTypes.RREP, self.id, 0, SOURCE))
+                print(self.table)
             # If not destination, broadcast rreq again (with random delay)
             else:
                 yield self.timeout(delay())
