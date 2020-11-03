@@ -46,8 +46,8 @@ if __name__ == '__main__':
         title="MACAW Star Topology Demo"
     )
 
-    star_topology = StarTopology()
-    star_topology.set_nodes()
-    star_topology.run()
+    topology = StarTopology()
+    topology.set_nodes()
+    topology.run()
 
     simulator.run()

@@ -27,8 +27,8 @@ if __name__ == '__main__':
         title="MACAW Line Topology Demo"
     )
 
-    lineTop = LineTopology()
-    lineTop.set_nodes()
-    lineTop.run()
+    topology = LineTopology()
+    topology.set_nodes()
+    topology.run()
 
     simulator.run()

@@ -29,8 +29,8 @@ if __name__ == '__main__':
         title="MACAW Extended Line Topology Demo"
     )
 
-    lineTop = ExtendedLineTopology()
-    lineTop.set_nodes()
-    lineTop.run()
+    topology = ExtendedLineTopology()
+    topology.set_nodes()
+    topology.run()
 
     simulator.run()
