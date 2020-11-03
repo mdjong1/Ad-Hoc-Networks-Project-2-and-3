@@ -1,15 +1,11 @@
 import wsnsimpy.wsnsimpy_tk as wsp
 import random
 
-SOURCE = 12
-DEST = 36
-COLLISION_SOURCE = 89
-COLLISION_DEST = 57
-NON_COLLISION_SOURCE = 90
-NON_COLLISION_DEST = 72
-
-SENDING_RADIUS_TIME = 1  # second
+SENDING_RADIUS_TIME = 1  # second(s)
 TX_CIRCLE_DELTA = 50  # how close are subsequent TX circles to one another
+
+BASE_BACKOFF_TIME = 1  # second(s)
+MAX_BACKOFF_TIME = 60  # seconds
 
 
 def delay():
@@ -23,46 +19,14 @@ class MacawNode(wsp.Node):
         self._rts_received = False
         self._in_data_transition = False
         self._rrts_target = None
+        self._backoff_time = BASE_BACKOFF_TIME
 
-    def run(self):
-        pass
-        # if self.id is SOURCE:
-        #  self.scene.nodecolor(self.id, 0, 0, 1)
-        #  self.scene.nodewidth(self.id, 2)
-        #  yield self.timeout(delay())
-        #  self.log(f"Send RTS to {DEST}")
-        #  self.send_rts(target=DEST)
+    def backoff(self):
+        if self._backoff_time < MAX_BACKOFF_TIME:
+            yield self.timeout(self._backoff_time)
+            self._backoff_time *= 2
 
-        # elif self.id is DEST:
-        #  self.scene.nodecolor(self.id, 1, 0, 0)
-        #  self.scene.nodewidth(self.id, 2)
-
-        # elif self.id == COLLISION_SOURCE:
-        #  self.scene.nodecolor(self.id, 0, .8, 1)
-        #  self.scene.nodewidth(self.id, 2)
-        #  yield self.timeout(delay() * 5)
-        #  self.log(f"Send RTS to {COLLISION_DEST}")
-        #  self.send_rts(target=COLLISION_DEST)
-
-        # elif self.id == COLLISION_DEST:
-        #  self.scene.nodecolor(self.id, 1, .8, 0)
-        #  self.scene.nodewidth(self.id, 2)
-
-        # elif self.id == NON_COLLISION_SOURCE:
-        #  self.scene.nodecolor(self.id, 0, .5, .7)
-        #  self.scene.nodewidth(self.id, 2)
-        #  yield self.timeout(delay())
-        #  self.log(f"Send RTS to {NON_COLLISION_DEST}")
-        #  self.send_rts(target=NON_COLLISION_DEST)
-
-        # elif self.id == NON_COLLISION_DEST:
-        #  self.scene.nodecolor(self.id, .9, .7, .2)
-        #  self.scene.nodewidth(self.id, 2)
-
-        # else:
-        #  self.scene.nodecolor(self.id, .5, .5, .5)
-
-        # Taken from the library but adjusted to transmission radius will remain active longer
+    # Taken from the library but adjusted to transmission radius will remain active longer
     def send(self, dest, *args, **kwargs):
         circles = []
 
