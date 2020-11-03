@@ -18,7 +18,6 @@ class GridTopology:
     def set_nodes(self):
         for x in range(GRID_BOUNDS[0], GRID_BOUNDS[2], NODE_SPACING):
             for y in range(GRID_BOUNDS[1], GRID_BOUNDS[3], NODE_SPACING):
-                print(x, y)
                 self.nodes.append(simulator.add_node(MacawNode, (x, y)))
 
         for node in self.nodes:
@@ -37,7 +36,6 @@ class GridTopology:
 
     def run(self):
         for cluster in range(NUM_SENDERS):
-            print(len(self.nodes))
             sender = self.nodes[random.randint(0, len(self.nodes) - 1)]
 
             receiver = self.get_receiver(sender)
