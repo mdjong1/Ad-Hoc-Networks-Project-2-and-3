@@ -40,6 +40,7 @@ class IsolatedTopology:
             max_val = cluster * NUM_NODES_PER_CLUSTER + NUM_NODES_PER_CLUSTER - 1
 
             sender = self.nodes[random.randint(min_val, max_val)]
+            # Ensure receiver != sender
             receiver = self.nodes[random.choice([i for i in range(min_val, max_val) if i != sender.id])].id
 
             sender.send_rts(receiver)
