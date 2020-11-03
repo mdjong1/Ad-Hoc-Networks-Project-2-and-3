@@ -36,18 +36,13 @@ class IsolatedTopology:
 
     def run(self):
         for cluster in range(len(CLUSTERS)):
-            print("Cluster:", cluster)
-            print("Min val:", cluster * NUM_NODES_PER_CLUSTER)
-            print("Max val:", cluster * NUM_NODES_PER_CLUSTER + NUM_NODES_PER_CLUSTER - 1)
             min_val = cluster * NUM_NODES_PER_CLUSTER
             max_val = cluster * NUM_NODES_PER_CLUSTER + NUM_NODES_PER_CLUSTER - 1
+
             sender = self.nodes[random.randint(min_val, max_val)]
             receiver = self.nodes[random.choice([i for i in range(min_val, max_val) if i != sender.id])].id
-            sender.send_rts(receiver)
 
-        # target = self.nodes[1].id
-        # self.nodes[0].send_rts(target)
-        # self.nodes[2].send_rts(target)
+            sender.send_rts(receiver)
 
 
 if __name__ == '__main__':
