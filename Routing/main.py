@@ -1,6 +1,7 @@
 import random
 import wsnsimpy.wsnsimpy_tk as wsp
 from enum import Enum
+from Routing.textstyles import TStyle
 
 SOURCE = 1
 DEST = 99
@@ -86,6 +87,17 @@ class MyNode(wsp.Node):
         # Else, make gray
         else:
             self.scene.nodecolor(self.id, .7, .7, .7)
+
+    def print_table(self):
+        """Pretty print routing table"""
+        dashes = 8*5 + 2*4 + 1
+        print(f"{TStyle.BOLD}Routing table of node {self.id}{TStyle.ENDC}")
+        print('+' + '-' * dashes + '+')  # Row of ---
+        print(f"| {'Source':<8}| {'Dest':<8}| {'Next':<8}| {'Seq':<8}| {'Hops':<8}|")
+        print('+' + '-' * dashes + '+')  # Row of ---
+        for i, row in self.table.items():
+            print(f"| {i:<8}| {row['dest']:<8}| {row['next']:<8}| {row['seq']:<8}| {row['hops']:<8}|")
+        print('+' + '-' * dashes + '+')  # Row of ---
 
     def send_rreq(self, msg):
         """
@@ -215,6 +227,9 @@ if __name__ == '__main__':
             node = simulator.add_node(MyNode, (px, py))
             node.tx_range = 75
             node.logging = True
+
+    source_node = simulator.nodes[SOURCE]
+    source_node.print_table()
 
     # Start simulation
     simulator.run()
