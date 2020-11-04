@@ -3,6 +3,9 @@ import wsnsimpy.wsnsimpy_tk as wsp
 from enum import Enum
 from Routing.textstyles import TStyle
 
+# TODO: something with RERR
+# TODO: do a bit more with sequence numbers
+
 
 class MTypes(Enum):
     """Enum for possible message types"""
@@ -77,6 +80,11 @@ class MyNode(wsp.Node):
 
         yield self.timeout(0.01)  # Very small delay to make sure we're initialised.
 
+        # Reset styles (for later rounds)
+        for node in self.sim.nodes:
+            self.scene.nodecolor(node.id, .7, .7, .7)
+            self.scene.nodewidth(node.id, 1)
+
         # Node is source, make blue and bold
         self.scene.nodecolor(self.id, 0, 0, 1)
         self.scene.nodewidth(self.id, 2)
@@ -127,12 +135,18 @@ class MyNode(wsp.Node):
         self.scene.clearlinks()
         seq = 0
         # Infinitely send data with period of 1
-        while True:
+        for i in range(random.randint(4, 9)):
             yield self.timeout(1)
             self.log(f"{TStyle.PINK}Send data to {dest} with seq {seq}{TStyle.ENDC}")
             message = Message(MTypes.DATA, self.id, seq, dest)
             self.send_data(message)
             seq += 1
+
+        yield self.timeout(2)
+        n_nodes = len(self.sim.nodes)
+        new_sender = self.sim.nodes[random.randint(0, n_nodes-1)]
+        new_receiver = self.sim.nodes[random.randint(0, n_nodes-1)]
+        self.start_process(new_sender.start_send_to(new_receiver.id))
 
     def send_data(self, msg):
         """
@@ -168,6 +182,7 @@ class MyNode(wsp.Node):
 
             # If destination receives the rreq, reply with rreply
             # TODO: check for double RREQs, don't send double RREP
+            # TODO: check if we already have the route to the destination in the table
             if self.id is msg.dest:
                 self.log(f"{TStyle.LIGHTGREEN}Received RREQ from {msg.src}{TStyle.ENDC}")
                 yield self.timeout(3)
@@ -208,7 +223,7 @@ class MyNode(wsp.Node):
 
 if __name__ == '__main__':
     terrain_size = 600
-    terrain_margin = 60
+    terrain_margin = 80
     playfield = terrain_size - 2*terrain_margin
 
     # Initiate simulator
