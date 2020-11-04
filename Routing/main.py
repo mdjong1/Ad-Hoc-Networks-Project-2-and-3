@@ -172,6 +172,9 @@ class MyNode(wsp.Node):
                 self.log(f"{TStyle.LIGHTGREEN}Received RREQ from {msg.src}{TStyle.ENDC}")
                 yield self.timeout(3)
                 self.log(f"{TStyle.BLUE}Send RREP to {msg.src}{TStyle.ENDC}")
+                for link in self.scene.links:
+                    self.scene.dellink(link[0], link[1], link[2])
+                    self.scene.addlink(link[0], link[1], 'inactive')
                 self.send_rreply(Message(MTypes.RREP, self.id, 0, msg.src))
 
             # If not destination, broadcast rreq again (with random delay)
@@ -184,6 +187,12 @@ class MyNode(wsp.Node):
             self.next = sender
             """
             self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+
+            # Replace link with parent_active version
+            try:
+                self.scene.dellink(self.id, self.table[msg.src]["next"], 'inactive')
+            finally:
+                self.scene.addlink(self.id, self.table[msg.src]["next"], 'parent_active')
 
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
@@ -222,6 +231,8 @@ if __name__ == '__main__':
 
     # Define a line style for parent links
     simulator.scene.linestyle("parent", color=(0, .8, 0), arrow="tail", width=2)
+    simulator.scene.linestyle("parent_active", color=(0, .8, .8), arrow="tail", width=2)
+    simulator.scene.linestyle("inactive", color=(.6, .6, .6), arrow="tail", width=1)
 
     # Place nodes in grid with random offset
     node_distance = playfield / 6
