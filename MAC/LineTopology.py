@@ -1,5 +1,9 @@
+import threading
+
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
+
+from Utilization import Utilization
 
 
 class LineTopology:
@@ -9,8 +13,7 @@ class LineTopology:
 
     def set_nodes(self):
         for x in range(3):
-            self.nodes.append(simulator.add_node(
-                MacawNode, (225 + (100 * x), 200)))
+            self.nodes.append(simulator.add_node(MacawNode, (225 + (100 * x), 200)))
             self.nodes[x].tx_range = 100
 
     def run(self):
@@ -36,5 +39,7 @@ if __name__ == '__main__':
     topology = LineTopology()
     topology.set_nodes()
     topology.run()
+
+    threading.Thread(target=Utilization, args=(simulator, topology.nodes,)).start()
 
     simulator.run()
