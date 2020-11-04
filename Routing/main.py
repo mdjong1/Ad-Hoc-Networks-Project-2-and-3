@@ -130,18 +130,18 @@ class MyNode(wsp.Node):
             yield self.timeout(1)
             self.log(f"{TStyle.PINK}Send data to {dest} with seq {seq}{TStyle.ENDC}")
             message = Message(MTypes.DATA, self.id, seq, dest)
-            self.send_data(message, dest)
+            self.send_data(message)
             seq += 1
 
-    def send_data(self, msg, dest):
+    def send_data(self, msg):
         """
         Send data to next link to destination
         :param Message msg: Message to send
         """
-        nxt = self.table[dest]["next"]
+        nxt = self.table[msg.dest]["next"]
         self.log(f"Forward data with seq {msg.seq} via {nxt}")
         message = msg.hop()
-        self.send(self.table[dest]["next"], msg=message)
+        self.send(self.table[msg.dest]["next"], msg=message)
 
     def on_receive(self, sender, msg, **kwargs):
         """
@@ -190,7 +190,7 @@ class MyNode(wsp.Node):
                 yield self.timeout(5)
                 self.log(f"{TStyle.BLUE}Start sending data{TStyle.ENDC}")
                 # Start new process to send data and keep simulating at the same time
-                self.start_process(self.start_send_data(msg.dest))
+                self.start_process(self.start_send_data(msg.src))
             # If not, forward rreply
             else:
                 yield self.timeout(.2)
