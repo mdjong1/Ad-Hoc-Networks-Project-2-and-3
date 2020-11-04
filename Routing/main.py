@@ -117,6 +117,7 @@ class MyNode(wsp.Node):
         if self.id is not msg.dest:
             self.scene.nodecolor(self.id, 0, .7, 0)
             self.scene.nodewidth(self.id, 2)
+
         # Forward rreply to previous link in the "routing table"
         message = msg.hop()
         self.send(self.table[msg.dest]["next"], msg=message)
@@ -169,7 +170,7 @@ class MyNode(wsp.Node):
             # TODO: check for double RREQs, don't send double RREP
             if self.id is msg.dest:
                 self.log(f"{TStyle.LIGHTGREEN}Received RREQ from {msg.src}{TStyle.ENDC}")
-                yield self.timeout(5)
+                yield self.timeout(3)
                 self.log(f"{TStyle.BLUE}Send RREP to {msg.src}{TStyle.ENDC}")
                 self.send_rreply(Message(MTypes.RREP, self.id, 0, msg.src))
 
@@ -206,31 +207,36 @@ class MyNode(wsp.Node):
 
 
 if __name__ == '__main__':
+    terrain_size = 600
+    terrain_margin = 60
+    playfield = terrain_size - 2*terrain_margin
+
     # Initiate simulator
     simulator = wsp.Simulator(
         until=60,
         timescale=1,
         visual=True,
-        terrain_size=(700, 700),
+        terrain_size=(terrain_size, terrain_size),
         title="Static AODV Demo"
     )
 
     # Define a line style for parent links
     simulator.scene.linestyle("parent", color=(0, .8, 0), arrow="tail", width=2)
 
-    # Place nodes over 100x100 grids
-    for x in range(10):
-        for y in range(10):
-            px = 50 + x * 60 + random.uniform(-20, 20)
-            py = 50 + y * 60 + random.uniform(-20, 20)
+    # Place nodes in grid with random offset
+    node_distance = playfield / 6
+    for x in range(7):
+        for y in range(7):
+            px = terrain_margin + x * node_distance + random.uniform(-20, 20)
+            py = terrain_margin + y * node_distance + random.uniform(-20, 20)
             node = simulator.add_node(MyNode, (px, py))
-            node.tx_range = 75
+            node.tx_range = 95
             node.logging = True
 
     source_node = simulator.nodes[1]
     # In order to allow a function to use timeouts (delays),
     # it has to be started as a 'process'
-    source_node.start_process(source_node.start_send_to(99))
+    source_node.start_process(source_node.start_send_to(len(simulator.nodes) - 1))
     source_node.print_table()
 
     # Start simulation
