@@ -3,7 +3,11 @@ import wsnsimpy.wsnsimpy_tk as wsp
 from enum import Enum
 from Routing.textstyles import TStyle
 
-# TODO: something with RERR
+demo_index = 0  # Used by the demo control function
+simulator = None  # Global simulator variable
+draw_arrows = True  # Whether to draw the arrows during route searching
+
+# TODO: something with RERR, so a broken link can be noticed (and thus added to the demo)
 # TODO: do a bit more with sequence numbers
 
 
@@ -80,11 +84,6 @@ class MyNode(wsp.Node):
 
         yield self.timeout(0.01)  # Very small delay to make sure we're initialised.
 
-        # Reset styles (for later rounds)
-        for node in self.sim.nodes:
-            self.scene.nodecolor(node.id, .7, .7, .7)
-            self.scene.nodewidth(node.id, 1)
-
         # Node is source, make blue and bold
         self.scene.nodecolor(self.id, 0, 0, 1)
         self.scene.nodewidth(self.id, 2)
@@ -134,7 +133,7 @@ class MyNode(wsp.Node):
         # Remove visual links/pointers
         self.scene.clearlinks()
         seq = 0
-        # Infinitely send data with period of 1
+        # Send a random amount of data with frequency of 1/s
         for i in range(random.randint(4, 9)):
             yield self.timeout(1)
             self.log(f"{TStyle.PINK}Send data to {dest} with seq {seq}{TStyle.ENDC}")
@@ -143,10 +142,7 @@ class MyNode(wsp.Node):
             seq += 1
 
         yield self.timeout(2)
-        n_nodes = len(self.sim.nodes)
-        new_sender = self.sim.nodes[random.randint(0, n_nodes-1)]
-        new_receiver = self.sim.nodes[random.randint(0, n_nodes-1)]
-        self.start_process(new_sender.start_send_to(new_receiver.id))
+        demo_control_callback()
 
     def send_data(self, msg):
         """
@@ -178,7 +174,8 @@ class MyNode(wsp.Node):
 
 
             # Draw arrow to parent as defined in __main__
-            self.scene.addlink(sender, self.id, "parent")
+            if draw_arrows:
+                self.scene.addlink(sender, self.id, "parent")
 
             # If destination receives the rreq, reply with rreply
             # TODO: check for double RREQs, don't send double RREP
@@ -221,6 +218,50 @@ class MyNode(wsp.Node):
                 self.log(f"{TStyle.LIGHTGREEN}Got data from {msg.src} with seq {msg.seq}{TStyle.ENDC}")
 
 
+def clear_board():
+    """Reset all node styles to grey and width 1"""
+    for node in simulator.nodes:
+        simulator.scene.nodecolor(node.id, .7, .7, .7)
+        simulator.scene.nodewidth(node.id, 1)
+
+
+def demo_control_callback():
+    """Function that defines the demo that we're showing"""
+    global demo_index, draw_arrows
+    demo_index += 1
+    n_nodes = len(simulator.nodes)
+
+    print(f"\n{TStyle.RED}{TStyle.BOLD}Demo control callback {demo_index}{TStyle.ENDC}")
+
+    # Let's do 3 data transfers total
+    if demo_index < 3:
+        # Reset styles
+        clear_board()
+
+        new_sender = simulator.nodes[random.randint(0, n_nodes - 1)]
+        new_receiver = simulator.nodes[random.randint(0, n_nodes - 1)]
+        new_sender.start_process(new_sender.start_send_to(new_receiver.id))
+    elif demo_index == 3:
+        # Reset styles after previous example and turn off arrows and logging
+        draw_arrows = False
+        clear_board()
+        for node in simulator.nodes:
+            node.logging = False
+
+        # Start 3 simultaneous processes
+        print(f"{TStyle.UNDERLINE}Starting 3 processes{TStyle.ENDC}")
+        for i in range(3):
+            new_sender = simulator.nodes[random.randint(0, n_nodes - 1)]
+            new_receiver = simulator.nodes[random.randint(0, n_nodes - 1)]
+            new_sender.start_process(new_sender.start_send_to(new_receiver.id))
+    elif demo_index < 6:
+        pass  # wait for previous processes to finish
+    else:
+        clear_board()
+        # Print a random node's table
+        simulator.nodes[random.randint(0, n_nodes - 1)].print_table()
+
+
 if __name__ == '__main__':
     terrain_size = 600
     terrain_margin = 80
@@ -228,7 +269,7 @@ if __name__ == '__main__':
 
     # Initiate simulator
     simulator = wsp.Simulator(
-        until=60,
+        until=100,
         timescale=1,
         visual=True,
         terrain_size=(terrain_size, terrain_size),
