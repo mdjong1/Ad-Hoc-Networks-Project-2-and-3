@@ -1,4 +1,4 @@
-BYTE_TRANSMISSION_TIME = 0.02  # second(s)
+BYTE_TRANSMISSION_TIME = 0.01  # second(s)
 TX_CIRCLE_DELTA = 50  # how close are subsequent TX circles to one another
 
 MIN_BACKOFF_TIME = 2  # # slots
