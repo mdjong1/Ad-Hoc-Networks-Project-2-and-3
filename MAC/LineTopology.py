@@ -16,6 +16,9 @@ class LineTopology:
     def run(self):
         target = self.nodes[2]
         self.nodes[1].add_data(256, target)
+        self.nodes[1].add_data(256, target)
+        self.nodes[1].add_data(256, target)
+        self.nodes[1].add_data(256, target)
 
         target = self.nodes[1]
         self.nodes[0].add_data(256, target, time_offset=1)

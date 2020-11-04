@@ -30,6 +30,7 @@ class MacawNode(wsp.LayeredNode):
         self._state = IDLE_STATE
         self._data_queue = []  # Queue of data packets
         self._backoff_time = MIN_BACKOFF_TIME
+        self._print_info = True
 
         # if this value exceeds CTS_TIMEOUT a cts is not received in time
         self._cts_timeout_counter = 0
@@ -39,6 +40,11 @@ class MacawNode(wsp.LayeredNode):
             if(len(self._data_queue) > 0 and self._state == IDLE_STATE):
                 self.start_process(self._start_transmission())
 
+            if(self._print_info):
+                info = "Node: " + str(self.id) + "\n" \
+                    + "BO: " + str(self._backoff_time) + "\n" \
+                    + "Queue: " + str(len(self._data_queue))
+                self.scene.nodelabel(self.id, label=info)
             # allow others to execute
             yield self.timeout(0.1)
 
@@ -185,7 +191,7 @@ class MacawNode(wsp.LayeredNode):
                 # self._rrts_target = sender
             # RTS is not meant for us we should wait and the the reiver time to send a CTS (1 time slot)
             elif self.id != target_id:
-                self.log(f"Received a RTS meant for someone else")
+                self.log(f"\"Received a RTS from {sender_id}\"")
                 self._state = WAIT_STATE
                 yield self.timeout(SLOT_TIME * 2)
                 self._state = IDLE_STATE
@@ -202,6 +208,7 @@ class MacawNode(wsp.LayeredNode):
 
             # Message is not meant for us we should wait until data transfer is finished
             else:
+                self.log(f"\"Received CTS from {sender_id}\"")
                 yield self.timeout(data_length * BYTE_TRANSMISSION_TIME)
 
                 # elif msg == 'DS':
