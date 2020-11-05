@@ -21,7 +21,7 @@ class MTypes(Enum):
 
 def delay(a=0.2, b=0.8):
     """Random delay between `a=0.2` and `b=0.8`"""
-    return random.uniform(a, b)
+    return 0.3
 
 
 class Message:
@@ -180,6 +180,7 @@ class MyNode(wsp.Node):
             # If destination receives the rreq, reply with rreply
             # TODO: check for double RREQs, don't send double RREP
             # TODO: check if we already have the route to the destination in the table
+
             if self.id is msg.dest:
                 self.log(f"{TStyle.LIGHTGREEN}Received RREQ from {msg.src}{TStyle.ENDC}")
                 yield self.timeout(3)
