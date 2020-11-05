@@ -9,7 +9,11 @@ BACKOFF_STATE = 3
 
 # Wait one slot to give someone else the opportunity to receive a CTS
 WAIT_STATE = 4
-RTS_RECEIVED_STATE = 5
+
+# Wait for a neighboard to finish its data transmission to anohter
+# neighboard. Enters this state after receiveing a CTS for someone else
+WAIT_FOR_DATA = 5
+RTS_RECEIVED_STATE = 6
 
 
 def delay():
@@ -63,13 +67,13 @@ class MacawNode(wsp.LayeredNode):
     # use MILD algorithm to increase backoftime F_inc(x) = MAX[1.5x, BO_max]
 
     def _inc_backoff(self):
-        self._backoff_time = round(self._backoff_time * 1.5)
+        self._backoff_time = round(self._backoff_time * 2)
         if self._backoff_time > MAX_BACKOFF_TIME:
             self._backoff_time = MAX_BACKOFF_TIME
 
     # use MILD algorithm to decrease backoftime F_inc(x) = MAX[x-1, BO_max]
     def _dec_backoff(self):
-        self._backoff_time -= 1
+        self._backoff_time = self._backoff_time / 2
         if self._backoff_time < MIN_BACKOFF_TIME:
             self._backoff_time = MIN_BACKOFF_TIME
 
@@ -112,7 +116,8 @@ class MacawNode(wsp.LayeredNode):
             line_style = "wsnsimpy:tx"
 
         for circle_diam in range(0, self.tx_range + TX_CIRCLE_DELTA, TX_CIRCLE_DELTA):
-            circle = self.scene.circle(self.pos[0], self.pos[1], circle_diam, line=line_style)
+            circle = self.scene.circle(
+                self.pos[0], self.pos[1], circle_diam, line=line_style)
             circles.append(circle)
 
         super().send(dest, *args, **kwargs)
@@ -125,22 +130,21 @@ class MacawNode(wsp.LayeredNode):
 
     def _send_rts(self, target_id, data_length):
         self.log(f"Send RTS to {target_id}")
-        self.send(wsp.BROADCAST_ADDR, msg='RTS', target_id=target_id, data_length=data_length)
+        self.send(wsp.BROADCAST_ADDR, msg='RTS',
+                  target_id=target_id, data_length=data_length)
 
     def _send_cts(self, target_id, data_length):
         self.log(f"Send CTS to {target_id}")
-        self.send(wsp.BROADCAST_ADDR, msg='CTS', target_id=target_id, data_length=data_length)
-
-    def _send_ds(self, target_id, data_length):
-        self.log(f"Send DS to {target_id}")
-        self.send(wsp.BROADCAST_ADDR, msg='DS', target_id=target_id, data_length=data_length)
+        self.send(wsp.BROADCAST_ADDR, msg='CTS',
+                  target_id=target_id, data_length=data_length)
 
     def _send_data(self):
         if len(self._data_queue) > 0:
             self._state = SENDING_STATE
             packet = self._data_queue[0]
             self.log(f"Send DATA to {packet.target_id}")
-            self.send(wsp.BROADCAST_ADDR, msg='DATA', target_id=packet.target_id, data_length=packet.length)
+            self.send(wsp.BROADCAST_ADDR, msg='DATA',
+                      target_id=packet.target_id, data_length=packet.length)
 
     def _send_ack(self, target_id):
         self.log(f"Send ACK to {target_id}")
@@ -154,16 +158,10 @@ class MacawNode(wsp.LayeredNode):
 
     def on_receive(self, sender_id, msg, **kwargs):
         target_id = kwargs['target_id']
-        backoff = -1
         data_length = -1
 
         if 'data_length' in kwargs:
             data_length = kwargs['data_length']
-
-        if 'backoff' in kwargs:
-            backoff = kwargs['backoff']
-            # Sync backoff counter with the others
-            self._backoff_time = backoff
 
         # Detect collisions
         if self._state == RECEIVING_STATE and msg != "DATA":
@@ -189,7 +187,8 @@ class MacawNode(wsp.LayeredNode):
                 # If the state is not update to RECEIVING_STATE something went
                 # wrong and we should reset to IDLE state
                 if self._state == RTS_RECEIVED_STATE:
-                    self.log(f"No data received from sender, returning to idle state")
+                    self.log(
+                        f"No data received from sender, returning to idle state")
                     self._state = IDLE_STATE
 
             elif self.id == target_id and self._state == RTS_RECEIVED_STATE:
@@ -203,7 +202,10 @@ class MacawNode(wsp.LayeredNode):
                 if self._state == IDLE_STATE:
                     self._state = WAIT_STATE
                     yield self.timeout(SLOT_TIME * 3)
-                    self._state = IDLE_STATE
+                    # make sure a CTS for someone else has not arrived in
+                    # the meaintime
+                    if(self._state == WAIT_STATE):
+                        self._state = IDLE_STATE
 
         elif msg == 'CTS':
             if self.id == target_id:
@@ -213,14 +215,9 @@ class MacawNode(wsp.LayeredNode):
                 self.log(f"Received CTS from {sender_id}")
                 self._state = SENDING_STATE
                 # We can send data now #lifegoals
-                self._send_ds(sender_id, data_length)
-                # don't know why but we need to wait otherwise the system
-                # thinks that there is a collision
-                yield self.timeout(0.1)
                 self._send_data()
 
                 # Wait for ACK
-                yield self.timeout(DATA_LENGTH["DS"] * BYTE_TRANSMISSION_TIME)
                 yield self.timeout(data_length * BYTE_TRANSMISSION_TIME)
                 yield self.timeout(DATA_LENGTH["ACK"] * BYTE_TRANSMISSION_TIME)
                 yield self.timeout(SLOT_TIME)
@@ -234,10 +231,10 @@ class MacawNode(wsp.LayeredNode):
             else:
                 self.log(f"\"Received CTS from {sender_id}\"")
                 # Avoid collision by waiting until data transmission is done
-                self._state = WAIT_STATE
-                yield self.timeout(DATA_LENGTH["DS"] * BYTE_TRANSMISSION_TIME)
+                self._state = WAIT_FOR_DATA
                 yield self.timeout(data_length * BYTE_TRANSMISSION_TIME)
                 yield self.timeout(DATA_LENGTH["ACK"] * BYTE_TRANSMISSION_TIME)
+                yield self.timeout(SLOT_TIME)
                 self._state = IDLE_STATE
 
                 # elif msg == 'DS':
@@ -256,24 +253,11 @@ class MacawNode(wsp.LayeredNode):
                 # Simulate time it takes to transmite data
                 self._state = RECEIVING_STATE
                 yield self.timeout(BYTE_TRANSMISSION_TIME * data_length)
-                self.log(f"Got DATA from {sender_id} with data length {data_length}")
+                self.log(
+                    f"Got DATA from {sender_id} with data length {data_length}")
 
                 self._state = IDLE_STATE
                 self._send_ack(sender_id)
-
-        elif msg == "DS":
-            if self.id != target_id:
-                # Simulate time it takes before the DS packet arrives
-                yield self.timeout(BYTE_TRANSMISSION_TIME * DATA_LENGTH["DS"])
-                self.log(f"Received DS from {sender_id}")
-
-                # Wait until our neighboar node is done sending data
-                # (Only when not waiting already)
-                if self._state != WAIT_STATE:
-                    self._state = WAIT_STATE
-                    time_to_wait = BYTE_TRANSMISSION_TIME * data_length + 2 * SLOT_TIME
-                    yield self.timeout(time_to_wait)
-                    self._state = IDLE_STATE
 
         elif msg == 'ACK':
             if self.id == target_id:

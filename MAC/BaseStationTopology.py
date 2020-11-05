@@ -11,15 +11,14 @@ class LineTopology:
         for x in range(3):
             self.nodes.append(simulator.add_node(
                 MacawNode, (225 + (100 * x), 200)))
-            self.nodes[x].tx_range = 100
+            self.nodes[x].tx_range = 200
 
     def run(self):
-        target = self.nodes[2]
+        baseStation = self.nodes[1]
         for n in range(5):
-            self.nodes[1].add_data(256, target)
+            self.nodes[0].add_data(256, baseStation)
 
-        target = self.nodes[1]
-        self.nodes[0].add_data(256, target, time_offset=1)
+        self.nodes[2].add_data(256, baseStation, time_offset=1)
 
 
 if __name__ == '__main__':
