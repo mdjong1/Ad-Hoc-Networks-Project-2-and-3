@@ -73,6 +73,9 @@ class MyNode(wsp.Node):
         """
         self.table = {id: {"dest": id, "next": id, "seq": 0, "hops": 0}}
 
+
+
+
     def init(self):
         super().init()
 
@@ -120,14 +123,33 @@ class MyNode(wsp.Node):
         Send RREP to next link to destination
         :param Message msg: Message to send
         """
-        # If we're a node in the path, make node green and bold
         if self.id is not msg.dest:
+            # If we're a node in the path, make node green and bold
             self.scene.nodecolor(self.id, 0, .7, 0)
             self.scene.nodewidth(self.id, 2)
 
-        # Forward rreply to previous link in the "routing table"
-        message = msg.hop()
-        self.send(self.table[msg.dest]["next"], msg=message)
+            # Forward rreply to previous link in the "routing table"
+            message = msg.hop()
+            self.send(self.table[msg.dest]["next"], msg=message)
+
+            """Check if the path still exists"""
+            next_node = self.table[msg.dest]["next"]
+            i = 0
+            while i < len(self.neighbors):
+                temp2 = self.neighbors[i].id
+                if next_node == temp2:
+                    messagesent = 1
+                    i = len(self.neighbors)
+                else:
+                    if i == len(self.neighbors) - 1:
+                        messagesent = 0
+                i += 1
+
+            if messagesent == 0:
+                nxt = self.table[msg.dest]["next"]
+                self.log(f"{TStyle.RED}Node {nxt} has disappeared ")
+                self.send(wsp.BROADCAST_ADDR, msg=message)
+
 
     def start_send_data(self, dest):
         # Remove visual links/pointers
@@ -154,6 +176,21 @@ class MyNode(wsp.Node):
         message = msg.hop()
         self.send(self.table[msg.dest]["next"], msg=message)
 
+        """Check if the path still exists"""
+        i = 0
+        while i < len(self.neighbors):
+            temp2 = self.neighbors[i].id
+            if nxt == temp2:
+                messagesent = 1
+                i = len(self.neighbors)
+            else:
+                if i == len(self.neighbors) - 1:
+                    messagesent = 0
+            i += 1
+
+        if messagesent == 0:
+            self.send(wsp.BROADCAST_ADDR, msg=message)
+
     def on_receive(self, sender, msg, **kwargs):
         """
         All responses to a particular cls (`msg`) type
@@ -161,16 +198,16 @@ class MyNode(wsp.Node):
         :param Message msg: Received message
         """
 
+        if msg.src in self.table:
+            if self.table[msg.src]["hops"] > msg.hops:
+                self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+            else:
+                return
+        else:
+            self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+
         if msg.type == MTypes.RREQ:
             # If we already received an rreq before, ignore
-
-            if msg.src in self.table:
-                if self.table[msg.src]["hops"] > msg.hops:
-                    self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-                else:
-                    return
-            else:
-                self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
 
 
             # Draw arrow to parent as defined in __main__
@@ -195,8 +232,9 @@ class MyNode(wsp.Node):
         elif msg.type == MTypes.RREP:
             """
             self.next = sender
-            """
+           
             self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+            """
 
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
