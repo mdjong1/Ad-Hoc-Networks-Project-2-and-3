@@ -15,8 +15,18 @@ class ExtendedLineTopology:
             self.nodes[x].tx_range = 100
 
     def run(self):
-        target = self.nodes[0]
-        self.nodes[1].add_data(100, target)
+        target = self.nodes[1]
+        self.nodes[0].add_data(256, target)
+        self.nodes[0].add_data(256, target)
+        self.nodes[0].add_data(256, target)
+        self.nodes[0].add_data(256, target)
+        self.nodes[0].add_data(256, target)
+
+        target = self.nodes[2]
+        self.nodes[3].add_data(256, target, 1)
+        self.nodes[3].add_data(256, target, 1)
+        self.nodes[3].add_data(256, target, 1)
+        self.nodes[3].add_data(256, target, 1)
 
 
 if __name__ == '__main__':
