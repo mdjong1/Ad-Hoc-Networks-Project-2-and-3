@@ -2,6 +2,8 @@ from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 from config import SLOT_TIME
 
+PACKET_SIZE = 256
+
 
 class ExtendedLineTopology:
 
@@ -10,22 +12,14 @@ class ExtendedLineTopology:
 
     def set_nodes(self):
         for x in range(4):
-            self.nodes.append(simulator.add_node(MacawNode, (175 + (100 * x), 200)))
+            self.nodes.append(simulator.add_node(
+                MacawNode, (175 + (100 * x), 200)))
             self.nodes[x].tx_range = 100
 
     def run(self):
-        target = self.nodes[1]
-        self.nodes[0].add_data(256, target)
-        self.nodes[0].add_data(256, target)
-        self.nodes[0].add_data(256, target)
-        self.nodes[0].add_data(256, target)
-        self.nodes[0].add_data(256, target)
-
-        target = self.nodes[2]
-        self.nodes[3].add_data(256, target, 1)
-        self.nodes[3].add_data(256, target, 1)
-        self.nodes[3].add_data(256, target, 1)
-        self.nodes[3].add_data(256, target, 1)
+        for n in range(5):
+            self.nodes[0].add_data(256, self.nodes[1])
+            self.nodes[3].add_data(256, self.nodes[2], 1)
 
 
 if __name__ == '__main__':

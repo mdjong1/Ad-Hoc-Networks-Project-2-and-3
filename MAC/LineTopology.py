@@ -1,6 +1,8 @@
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 
+PACKET_SIZE = 512
+
 
 class LineTopology:
 
@@ -16,10 +18,10 @@ class LineTopology:
     def run(self):
         target = self.nodes[2]
         for n in range(5):
-            self.nodes[1].add_data(256, target)
+            self.nodes[1].add_data(PACKET_SIZE, target)
 
         target = self.nodes[1]
-        self.nodes[0].add_data(256, target, time_offset=1)
+        self.nodes[0].add_data(PACKET_SIZE, target, time_offset=1)
 
 
 if __name__ == '__main__':
