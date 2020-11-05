@@ -10,8 +10,7 @@ class ExtendedLineTopology:
 
     def set_nodes(self):
         for x in range(4):
-            self.nodes.append(simulator.add_node(
-                MacawNode, (175 + (100 * x), 200)))
+            self.nodes.append(simulator.add_node(MacawNode, (175 + (100 * x), 200)))
             self.nodes[x].tx_range = 100
 
     def run(self):
