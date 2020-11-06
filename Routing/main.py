@@ -185,8 +185,6 @@ class MyNode(wsp.Node):
             """
             self.send_rrer(Message(MTypes.RRER, msg.dest, 100, msg.src))
 
-
-
     def send_rrer(self, msg):
 
         if self.id is not msg.dest:
@@ -280,7 +278,7 @@ class MyNode(wsp.Node):
                 yield self.timeout(5)
                 self.log(f"{TStyle.BLUE}Restart sending RREQ{TStyle.ENDC}")
                 # broadcast a RREQ to find a new path
-                self.send_rreq(Message(MTypes.RREQ, self.id, 0, dest))
+                self.send_rreq(Message(MTypes.RREQ, self.id, 0, msg.dest))
                 self.start_process(self.start_send_data(msg.src))
             # If not, forward rreply
             else:
