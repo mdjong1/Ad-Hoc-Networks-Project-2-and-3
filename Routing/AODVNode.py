@@ -50,10 +50,17 @@ class MyNode(wsp.Node):
 
         yield self.timeout(1)
         # Start by sending rreq
+        msg = Message(MTypes.RREQ, self.id, self.seq, dest)
+        if msg.dest in self.table:
+            self.log(f"{TStyle.LIGHTGREEN}Route found in table to {msg.dest}{TStyle.ENDC}")
+            self.log(f"{TStyle.BLUE}Start sending data{TStyle.ENDC}")
+            # Start new process to send data and keep simulating at the same time
+            self.start_process(self.start_send_data(msg.src))
+        else:
+            self.send_rreq(msg)
         """
         For the first RREQ the seq of the node is taken
         """
-        self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, dest))
 
     def print_table(self):
         """Pretty print routing table"""
@@ -139,21 +146,21 @@ class MyNode(wsp.Node):
             self.log(f"{TStyle.RED}Node {nxt} is disconnected ")
 
             """
-            Message type = RRER
+            Message type = RERR
             Src = destination, this will be used to restart the RREQ to this destination
             seq = making it 0 ensures that no table will be updated
             Dest = the source of the data message
             """
-            self.send_rrer(Message(MTypes.RRER, msg.dest, 0, msg.src))
+            self.send_rerr(Message(MTypes.RERR, msg.dest, 0, msg.src))
 
-    def send_rrer(self, msg):
+    def send_rerr(self, msg):
 
         if self.id is not msg.dest:
             # If we're a node in the path, make node green and bold
             self.scene.nodecolor(self.id, .7, 0, 0)
             self.scene.nodewidth(self.id, 2)
 
-            self.log(f"{TStyle.BLUE}Sending RRER{TStyle.ENDC}")
+            self.log(f"{TStyle.BLUE}Sending RERR{TStyle.ENDC}")
             # Forward rreply to previous link in the "routing table"
             nxt = self.table[msg.dest]["next"]
             message = msg.hop()
@@ -210,6 +217,16 @@ class MyNode(wsp.Node):
                 self.seq += 10
                 self.send_rreply(Message(MTypes.RREP, self.id, self.seq, msg.src))
 
+            elif msg.dest in self.table:
+                self.log(f"{TStyle.LIGHTGREEN} Node {self.id} has route {msg.dest}{TStyle.ENDC}")
+                yield self.timeout(3)
+                self.log(f"{TStyle.BLUE}Send RREP to {msg.src}{TStyle.ENDC}")
+                """
+                The seq is updated with 10 when DEST receives a RREQ
+                """
+                self.seq += 10
+                self.send_rreply(Message(MTypes.RREP, self.id, self.seq, msg.src))
+
             # If not destination, broadcast rreq again (with random delay)
             else:
                 yield self.timeout(delay())
@@ -255,7 +272,7 @@ class MyNode(wsp.Node):
         elif msg.type == MTypes.RERR:
 
             if self.id is msg.dest:
-                self.log(f"{TStyle.LIGHTGREEN}Received RRER from {msg.src}{TStyle.ENDC}")
+                self.log(f"{TStyle.LIGHTGREEN}Received RERR from {msg.src}{TStyle.ENDC}")
                 yield self.timeout(5)
                 self.log(f"{TStyle.BLUE}Restart sending RREQ{TStyle.ENDC}")
                 # broadcast a RREQ to find a new path
@@ -268,4 +285,4 @@ class MyNode(wsp.Node):
             # If not, forward rreply
             else:
                 yield self.timeout(.2)
-                self.send_rrer(msg)
+                self.send_rerr(msg)
