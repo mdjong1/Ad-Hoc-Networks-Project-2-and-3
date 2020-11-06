@@ -7,6 +7,7 @@ demo_index = 0  # Used by the demo control function
 simulator = None  # Global simulator variable
 draw_arrows = True  # Whether to draw the arrows during route searching
 
+
 # TODO: something with RERR, so a broken link can be noticed (and thus added to the demo)
 # TODO: do a bit more with sequence numbers
 
@@ -73,9 +74,6 @@ class MyNode(wsp.Node):
         """
         self.table = {id: {"dest": id, "next": id, "seq": 0, "hops": 0}}
 
-
-
-
     def init(self):
         super().init()
 
@@ -101,7 +99,7 @@ class MyNode(wsp.Node):
 
     def print_table(self):
         """Pretty print routing table"""
-        dashes = 8*5 + 2*4 + 1
+        dashes = 8 * 5 + 2 * 4 + 1
         print(f"{TStyle.BOLD}Routing table of node {self.id}{TStyle.ENDC}")
         print('+' + '-' * dashes + '+')  # Row of ---
         print(f"| {'Source':<8}| {'Dest':<8}| {'Next':<8}| {'Seq':<8}| {'Hops':<8}|")
@@ -133,23 +131,16 @@ class MyNode(wsp.Node):
             self.send(self.table[msg.dest]["next"], msg=message)
 
             """Check if the path still exists"""
-            next_node = self.table[msg.dest]["next"]
-            i = 0
-            while i < len(self.neighbors):
-                temp2 = self.neighbors[i].id
-                if next_node == temp2:
+            nxt= self.table[msg.dest]["next"]
+            messagesent = 0
+            for node in self.neighbors:
+                if nxt == node.id:
                     messagesent = 1
-                    i = len(self.neighbors)
-                else:
-                    if i == len(self.neighbors) - 1:
-                        messagesent = 0
-                i += 1
+                    break
 
             if messagesent == 0:
-                nxt = self.table[msg.dest]["next"]
                 self.log(f"{TStyle.RED}Node {nxt} has disappeared ")
                 self.send(wsp.BROADCAST_ADDR, msg=message)
-
 
     def start_send_data(self, dest):
         # Remove visual links/pointers
@@ -177,19 +168,50 @@ class MyNode(wsp.Node):
         self.send(self.table[msg.dest]["next"], msg=message)
 
         """Check if the path still exists"""
-        i = 0
-        while i < len(self.neighbors):
-            temp2 = self.neighbors[i].id
-            if nxt == temp2:
+        messagesent = 0
+        for node in self.neighbors:
+            if nxt == node.id:
                 messagesent = 1
-                i = len(self.neighbors)
-            else:
-                if i == len(self.neighbors) - 1:
-                    messagesent = 0
-            i += 1
+                break
 
         if messagesent == 0:
-            self.send(wsp.BROADCAST_ADDR, msg=message)
+            self.log(f"{TStyle.RED}Node {nxt} is disconnected ")
+
+            """
+            Message type = RRER
+            Src = destination, this will be used to restart the RREQ to this destination
+            hop = large number to make sure that this won't change tables
+            Dest = the source of the data message
+            """
+            self.send_rrer(Message(MTypes.RRER, msg.dest, 100, msg.src))
+
+
+
+    def send_rrer(self, msg):
+
+        if self.id is not msg.dest:
+            # If we're a node in the path, make node green and bold
+            self.scene.nodecolor(self.id, .7, 0, 0)
+            self.scene.nodewidth(self.id, 2)
+
+            self.log(f"{TStyle.BLUE}Sending RRER{TStyle.ENDC}")
+            # Forward rreply to previous link in the "routing table"
+            nxt = self.table[msg.dest]["next"]
+            message = msg.hop()
+            self.send(nxt, msg=message)
+
+            """Check if the path still exists"""
+
+            messagesent = 0
+            for node in self.neighbors:
+                if nxt == node.id:
+                    messagesent = 1
+                    break
+
+            if messagesent == 0:
+                nxt = self.table[msg.dest]["next"]
+                self.log(f"{TStyle.RED}Node {nxt} is disconnected ")
+                self.send(wsp.BROADCAST_ADDR, msg=message)
 
     def on_receive(self, sender, msg, **kwargs):
         """
@@ -198,25 +220,21 @@ class MyNode(wsp.Node):
         :param Message msg: Received message
         """
 
-        if msg.src in self.table:
-            if self.table[msg.src]["hops"] > msg.hops:
-                self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-            else:
-                return
-        else:
-            self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-
         if msg.type == MTypes.RREQ:
             # If we already received an rreq before, ignore
-
+            if msg.src in self.table:
+                if self.table[msg.src]["hops"] > msg.hops:
+                    self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+                else:
+                    return
+            else:
+                self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
 
             # Draw arrow to parent as defined in __main__
             if draw_arrows:
                 self.scene.addlink(sender, self.id, "parent")
 
             # If destination receives the rreq, reply with rreply
-            # TODO: check for double RREQs, don't send double RREP
-            # TODO: check if we already have the route to the destination in the table
 
             if self.id is msg.dest:
                 self.log(f"{TStyle.LIGHTGREEN}Received RREQ from {msg.src}{TStyle.ENDC}")
@@ -232,9 +250,8 @@ class MyNode(wsp.Node):
         elif msg.type == MTypes.RREP:
             """
             self.next = sender
-           
+             """
             self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-            """
 
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
@@ -256,6 +273,19 @@ class MyNode(wsp.Node):
             else:
                 self.log(f"{TStyle.LIGHTGREEN}Got data from {msg.src} with seq {msg.seq}{TStyle.ENDC}")
 
+        elif msg.type == MTypes.RERR:
+
+            if self.id is msg.dest:
+                self.log(f"{TStyle.LIGHTGREEN}Received RRER from {msg.src}{TStyle.ENDC}")
+                yield self.timeout(5)
+                self.log(f"{TStyle.BLUE}Restart sending RREQ{TStyle.ENDC}")
+                # broadcast a RREQ to find a new path
+                self.send_rreq(Message(MTypes.RREQ, self.id, 0, dest))
+                self.start_process(self.start_send_data(msg.src))
+            # If not, forward rreply
+            else:
+                yield self.timeout(.2)
+                self.send_rrer(msg)
 
 def clear_board():
     """Reset all node styles to grey and width 1"""
@@ -304,7 +334,7 @@ def demo_control_callback():
 if __name__ == '__main__':
     terrain_size = 600
     terrain_margin = 80
-    playfield = terrain_size - 2*terrain_margin
+    playfield = terrain_size - 2 * terrain_margin
 
     # Initiate simulator
     simulator = wsp.Simulator(
