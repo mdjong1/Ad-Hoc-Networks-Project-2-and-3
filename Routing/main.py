@@ -69,10 +69,9 @@ class MyNode(wsp.Node):
 
         # "routing table"
         """
-        self.next = None
-        self.prev = None
+        The seq in the table entry to itself is very high
         """
-        self.table = {id: {"dest": id, "next": id, "seq": 0, "hops": 0}}
+        self.table = {id: {"dest": id, "next": id, "seq": 1000, "hops": 0}}
         self.seq = 1
 
     def init(self):
