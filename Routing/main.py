@@ -73,6 +73,7 @@ class MyNode(wsp.Node):
         self.prev = None
         """
         self.table = {id: {"dest": id, "next": id, "seq": 0, "hops": 0}}
+        self.seq = 1
 
     def init(self):
         super().init()
@@ -95,7 +96,10 @@ class MyNode(wsp.Node):
 
         yield self.timeout(1)
         # Start by sending rreq
-        self.send_rreq(Message(MTypes.RREQ, self.id, 0, dest))
+        """
+        For the first RREQ the seq of the node is taken
+        """
+        self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, dest))
 
     def print_table(self):
         """Pretty print routing table"""
@@ -145,14 +149,17 @@ class MyNode(wsp.Node):
     def start_send_data(self, dest):
         # Remove visual links/pointers
         self.scene.clearlinks()
-        seq = 0
+        """
+        First the seq is updated and for each data message a higher seq is taken
+        """
+        self.seq += 1
         # Send a random amount of data with frequency of 1/s
         for i in range(random.randint(4, 9)):
             yield self.timeout(1)
-            self.log(f"{TStyle.PINK}Send data to {dest} with seq {seq}{TStyle.ENDC}")
-            message = Message(MTypes.DATA, self.id, seq, dest)
+            self.log(f"{TStyle.PINK}Send data to {dest} with seq {self.seq}{TStyle.ENDC}")
+            message = Message(MTypes.DATA, self.id, self.seq, dest)
             self.send_data(message)
-            seq += 1
+            self.seq += 1
 
         yield self.timeout(2)
         demo_control_callback()
@@ -180,10 +187,10 @@ class MyNode(wsp.Node):
             """
             Message type = RRER
             Src = destination, this will be used to restart the RREQ to this destination
-            hop = large number to make sure that this won't change tables
+            seq = making it 0 ensures that no table will be updated
             Dest = the source of the data message
             """
-            self.send_rrer(Message(MTypes.RRER, msg.dest, 100, msg.src))
+            self.send_rrer(Message(MTypes.RRER, msg.dest, 0, msg.src))
 
     def send_rrer(self, msg):
 
@@ -221,8 +228,13 @@ class MyNode(wsp.Node):
         if msg.type == MTypes.RREQ:
             # If we already received an rreq before, ignore
             if msg.src in self.table:
-                if self.table[msg.src]["hops"] > msg.hops:
+                if self.table[msg.src]["seq"] < msg.seq:
                     self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+                elif self.table[msg.src]["seq"] == msg.seq:
+                    if self.table[msg.src]["hops"] > msg.hops:
+                        self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+                    else:
+                        return
                 else:
                     return
             else:
@@ -238,7 +250,11 @@ class MyNode(wsp.Node):
                 self.log(f"{TStyle.LIGHTGREEN}Received RREQ from {msg.src}{TStyle.ENDC}")
                 yield self.timeout(3)
                 self.log(f"{TStyle.BLUE}Send RREP to {msg.src}{TStyle.ENDC}")
-                self.send_rreply(Message(MTypes.RREP, self.id, 0, msg.src))
+                """
+                The seq is updated with 10 when DEST receives a RREQ
+                """
+                self.seq += 10
+                self.send_rreply(Message(MTypes.RREP, self.id, self.seq, msg.src))
 
             # If not destination, broadcast rreq again (with random delay)
             else:
@@ -249,7 +265,18 @@ class MyNode(wsp.Node):
             """
             self.next = sender
              """
-            self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+            if msg.src in self.table:
+                if self.table[msg.src]["seq"] < msg.seq:
+                    self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+                elif self.table[msg.src]["seq"] == msg.seq:
+                    if self.table[msg.src]["hops"] > msg.hops:
+                        self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+                    else:
+                        return
+                else:
+                    return
+            else:
+                self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
 
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
@@ -278,12 +305,17 @@ class MyNode(wsp.Node):
                 yield self.timeout(5)
                 self.log(f"{TStyle.BLUE}Restart sending RREQ{TStyle.ENDC}")
                 # broadcast a RREQ to find a new path
-                self.send_rreq(Message(MTypes.RREQ, self.id, 0, msg.dest))
+                """
+                The seq is updated by 2 when starting a new RREQ
+                """
+                self.seq += 2
+                self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, msg.dest))
                 self.start_process(self.start_send_data(msg.src))
             # If not, forward rreply
             else:
                 yield self.timeout(.2)
                 self.send_rrer(msg)
+
 
 def clear_board():
     """Reset all node styles to grey and width 1"""
@@ -308,6 +340,7 @@ def demo_control_callback():
         new_sender = simulator.nodes[random.randint(0, n_nodes - 1)]
         new_receiver = simulator.nodes[random.randint(0, n_nodes - 1)]
         new_sender.start_process(new_sender.start_send_to(new_receiver.id))
+
     elif demo_index == 3:
         # Reset styles after previous example and turn off arrows and logging
         draw_arrows = False
