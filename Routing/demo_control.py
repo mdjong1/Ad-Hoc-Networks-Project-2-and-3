@@ -39,7 +39,6 @@ def demo_control_callback():
         source_node = Routing.simulator.nodes[1]
         dest_id = n_nodes - 1
         # Remove a node in the path
-        source_node.print_table()
         node = source_node
         # Follow the route for 3 links
         for i in range(4):
@@ -50,10 +49,11 @@ def demo_control_callback():
         source_node.start_process(source_node.start_send_to(dest_id))
     # 3 data transfers between random nodes
     elif demo_index < 5:
+        Routing.simulator.nodes[1].print_table()
         # Reset styles
         clear_board()
 
-        # Fixme: make sure the nodes are not too close together and also not the removed node!
+        # Fixme: make sure the nodes are not too close together and also not the removed node and also not itself!
         new_sender = Routing.simulator.nodes[random.randint(0, n_nodes - 1)]
         new_receiver = Routing.simulator.nodes[random.randint(0, n_nodes - 1)]
         new_sender.start_process(new_sender.start_send_to(new_receiver.id))
