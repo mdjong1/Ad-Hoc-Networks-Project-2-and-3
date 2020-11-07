@@ -87,16 +87,17 @@ class MyNode(wsp.Node):
         :param Message msg: Message to send
         """
         if self.id is not msg.dest:
-            # If we're a node in the path, make node green and bold
-            self.scene.nodecolor(self.id, 0, .7, 0)
-            self.scene.nodewidth(self.id, 2)
+            if self.id is not msg.src:
+                # If we're a node in the path, make node cyan and bold
+                self.scene.nodecolor(self.id, 0, .7, .9)
+                self.scene.nodewidth(self.id, 2)
 
             # Forward rreply to previous link in the "routing table"
             message = msg.hop()
             self.send(self.table[msg.dest]["next"], msg=message)
 
             """Check if the path still exists"""
-            nxt= self.table[msg.dest]["next"]
+            nxt = self.table[msg.dest]["next"]
             messagesent = 0
             for node in self.neighbors:
                 if nxt == node.id:
@@ -156,9 +157,10 @@ class MyNode(wsp.Node):
     def send_rerr(self, msg):
 
         if self.id is not msg.dest:
-            # If we're a node in the path, make node green and bold
-            self.scene.nodecolor(self.id, .7, 0, 0)
-            self.scene.nodewidth(self.id, 2)
+            if self.id is not msg.src:
+                # If we're a node in the path, make node orange and bold
+                self.scene.nodecolor(self.id, 1, .7, 0)
+                self.scene.nodewidth(self.id, 2)
 
             self.log(f"{TStyle.BLUE}Sending RERR{TStyle.ENDC}")
             # Forward rreply to previous link in the "routing table"

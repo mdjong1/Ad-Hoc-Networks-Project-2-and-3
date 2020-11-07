@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     # Initiate simulator
     Routing.simulator = wsp.Simulator(
-        until=100,
+        until=150,
         timescale=1,
         visual=True,
         terrain_size=(terrain_size, terrain_size),
