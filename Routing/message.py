@@ -17,7 +17,7 @@ def delay(a=0.2, b=0.8):
 class Message:
     """AODV message class"""
 
-    def __init__(self, type, src, seq, dest, hops=0):
+    def __init__(self, type, src, seq, dest, hops=0, payload=None):
         """
         :param MTypes type: Message type
         :param int src: Source ID
@@ -32,6 +32,7 @@ class Message:
         self.seq = seq
         self.dest = dest
         self.hops = hops
+        self.payload = payload
 
     @classmethod
     def from_other(cls, message):
@@ -39,7 +40,7 @@ class Message:
         :param Message cls: Class
         :param Message message: Message object to clone
         """
-        return Message(message.type, message.src, message.seq, message.dest, message.hops + 1)
+        return Message(message.type, message.src, message.seq, message.dest, message.hops + 1, message.payload)
 
     def hop(self):
-        return Message(self.type, self.src, self.seq, self.dest, self.hops + 1)
+        return Message(self.type, self.src, self.seq, self.dest, self.hops + 1, self.payload)

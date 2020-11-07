@@ -71,6 +71,37 @@ class MyNode(wsp.Node):
             print(f"| {i:<8}| {row['dest']:<8}| {row['next']:<8}| {row['seq']:<8}| {row['hops']:<8}|")
         print('+' + '-' * dashes + '+')  # Row of ---
 
+    def next_reachable(self, msg):
+        """
+        Check if the path still exists and send RERR if not
+        :param Message msg: The message to check the path for
+        :return: Whether path is available
+        """
+        reachable = False
+        next_hop = None
+        # If the destination is not in our table (anymore), send
+        if msg.dest in self.table:
+            next_hop = self.table[msg.dest]["next"]
+            for node in self.neighbors:
+                if next_hop == node.id:
+                    reachable = True
+                    break
+            if not reachable:
+                self.log(f"{TStyle.RED}Node {next_hop} is cannot be reached{TStyle.ENDC}")
+        else:
+            self.log(f"{TStyle.RED}Node {msg.dest} not in routing table{TStyle.ENDC}")
+
+        if not reachable:
+            # Message type = RERR
+            # Src = destination, this will be used to restart the RREQ to this destination
+            # seq = making it 0 ensures that no table will be updated
+            # Dest = the source of the data message
+            self.send_rerr(
+                Message(MTypes.RERR, self.id, 0, msg.src, payload={"orig_dest": msg.dest, "broken_link": next_hop})
+            )
+
+        return reachable
+
     def send_rreq(self, msg):
         """
         Broadcast RREQ to all nodes in TX range
@@ -90,21 +121,10 @@ class MyNode(wsp.Node):
                 self.scene.nodecolor(self.id, 0, .7, .9)
                 self.scene.nodewidth(self.id, 2)
 
-            # Forward rreply to previous link in the "routing table"
-            message = msg.hop()
-            self.send(self.table[msg.dest]["next"], msg=message)
-
-            """Check if the path still exists"""
-            nxt = self.table[msg.dest]["next"]
-            messagesent = 0
-            for node in self.neighbors:
-                if nxt == node.id:
-                    messagesent = 1
-                    break
-
-            if messagesent == 0:
-                self.log(f"{TStyle.RED}Node {nxt} has disappeared ")
-                self.send(wsp.BROADCAST_ADDR, msg=message)
+            # Forward RREP to previous link in the "routing table"
+            if self.next_reachable(msg):
+                message = msg.hop()
+                self.send(self.table[msg.dest]["next"], msg=message)
 
     def start_send_data(self, dest):
         # Remove visual links/pointers
@@ -127,34 +147,17 @@ class MyNode(wsp.Node):
         Send data to next link to destination
         :param Message msg: Message to send
         """
-        nxt = self.table[msg.dest]["next"]
-        self.log(f"Forward data with seq {msg.seq} via {nxt}")
-        message = msg.hop()
-        self.send(self.table[msg.dest]["next"], msg=message)
-
-        # Check if the path still exists
-        messagesent = 0
-        for node in self.neighbors:
-            if nxt == node.id:
-                messagesent = 1
-                break
-
-        if messagesent == 0:
-            self.log(f"{TStyle.RED}Node {nxt} is disconnected ")
-
-            # Message type = RERR
-            # Src = destination, this will be used to restart the RREQ to this destination
-            # seq = making it 0 ensures that no table will be updated
-            # Dest = the source of the data message
-            self.send_rerr(Message(MTypes.RERR, msg.dest, 0, msg.src))
+        if self.next_reachable(msg):
+            self.log(f"Forward data with seq {msg.seq} via {self.table[msg.dest]['next']}")
+            message = msg.hop()
+            self.send(self.table[msg.dest]["next"], msg=message)
 
     def send_rerr(self, msg):
 
         if self.id is not msg.dest:
-            if self.id is not msg.src:
-                # If we're a node in the path, make node orange and bold
-                self.scene.nodecolor(self.id, 1, .7, 0)
-                self.scene.nodewidth(self.id, 2)
+            # If we're a node in the path, make node orange and bold
+            self.scene.nodecolor(self.id, 1, .7, 0)
+            self.scene.nodewidth(self.id, 2)
 
             self.log(f"{TStyle.BLUE}Sending RERR{TStyle.ENDC}")
             # Forward rreply to previous link in the "routing table"
@@ -261,7 +264,10 @@ class MyNode(wsp.Node):
                 self.seq += 2
                 self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, msg.dest))
                 self.start_process(self.start_send_data(msg.src))
-            # If not, forward rreply
+            # If not, forward RERR
             else:
                 yield self.timeout(.2)
+                # Remove original destination from the routing table
+                if msg.payload["orig_dest"] in self.table:
+                    del self.table[msg.payload["orig_dest"]]
                 self.send_rerr(msg)
