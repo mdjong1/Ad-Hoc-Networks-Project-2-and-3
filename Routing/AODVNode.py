@@ -19,6 +19,7 @@ class MyNode(wsp.Node):
 
     tx_range = 100
     draw_arrows = True
+    cancel_data_transfer = False
 
     def __init__(self, sim, id, pos):
         """Define variables and initiate node superclass"""
@@ -134,13 +135,19 @@ class MyNode(wsp.Node):
         # Send a random amount of data with frequency of 1/s
         for i in range(random.randint(4, 9)):
             yield self.timeout(1)
+            if self.cancel_data_transfer:
+                self.log("Canceled data transfer")
+                break
             self.log(f"{TStyle.PINK}Send data to {dest} with seq {self.seq}{TStyle.ENDC}")
             message = Message(MTypes.DATA, self.id, self.seq, dest)
             self.send_data(message)
             self.seq += 1
 
-        yield self.timeout(2)
-        demo_control_callback()
+        if self.cancel_data_transfer:
+            self.cancel_data_transfer = False
+        else:
+            yield self.timeout(2)
+            demo_control_callback()
 
     def send_data(self, msg):
         """
@@ -254,16 +261,19 @@ class MyNode(wsp.Node):
                 self.log(f"{TStyle.LIGHTGREEN}Got data from {msg.src} with seq {msg.seq}{TStyle.ENDC}")
 
         elif msg.type == MTypes.RERR:
-
+            # If we get notified that our destination is unreachable
             if self.id is msg.dest:
-                self.log(f"{TStyle.LIGHTGREEN}Received RERR from {msg.src}{TStyle.ENDC}")
-                yield self.timeout(5)
-                self.log(f"{TStyle.BLUE}Restart sending RREQ{TStyle.ENDC}")
-                # broadcast a RREQ to find a new path
+                # Stop the current data transfer
+                self.cancel_data_transfer = True
+                self.log(f"{TStyle.LIGHTGREEN}Received RERR for {msg.payload['orig_dest']} from {msg.src}{TStyle.ENDC}")
+                yield self.timeout(3)
+                self.log(f"{TStyle.BLUE}Restart sending RREQ for {msg.payload['orig_dest']}{TStyle.ENDC}")
+                # Broadcast a RREQ to find a new path to orig_dest
                 # The seq is updated by 2 when starting a new RREQ
                 self.seq += 2
-                self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, msg.dest))
-                self.start_process(self.start_send_data(msg.src))
+                self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, msg.payload["orig_dest"]))
+                # Restart data sending is automatically triggered when the RREQ comes back, following not necessary
+                # self.start_process(self.start_send_data(msg.payload["orig_dest"]))
             # If not, forward RERR
             else:
                 yield self.timeout(.2)
