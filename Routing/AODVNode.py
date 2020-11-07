@@ -50,17 +50,15 @@ class MyNode(wsp.Node):
 
         yield self.timeout(1)
         # Start by sending rreq
-        msg = Message(MTypes.RREQ, self.id, self.seq, dest)
-        if msg.dest in self.table:
-            self.log(f"{TStyle.LIGHTGREEN}Route found in table to {msg.dest}{TStyle.ENDC}")
+        if dest in self.table:
+            self.log(f"{TStyle.LIGHTGREEN}Route to {dest} found in routing table{TStyle.ENDC}")
             self.log(f"{TStyle.BLUE}Start sending data{TStyle.ENDC}")
             # Start new process to send data and keep simulating at the same time
-            self.start_process(self.start_send_data(msg.src))
+            self.start_process(self.start_send_data(dest))
         else:
+            msg = Message(MTypes.RREQ, self.id, self.seq, dest)
             self.send_rreq(msg)
-        """
-        For the first RREQ the seq of the node is taken
-        """
+        # For the first RREQ the seq of the node is taken
 
     def print_table(self):
         """Pretty print routing table"""
@@ -111,9 +109,7 @@ class MyNode(wsp.Node):
     def start_send_data(self, dest):
         # Remove visual links/pointers
         self.scene.clearlinks()
-        """
-        First the seq is updated and for each data message a higher seq is taken
-        """
+        # First the seq is updated and for each data message a higher seq is taken
         self.seq += 1
         # Send a random amount of data with frequency of 1/s
         for i in range(random.randint(4, 9)):
@@ -136,7 +132,7 @@ class MyNode(wsp.Node):
         message = msg.hop()
         self.send(self.table[msg.dest]["next"], msg=message)
 
-        """Check if the path still exists"""
+        # Check if the path still exists
         messagesent = 0
         for node in self.neighbors:
             if nxt == node.id:
@@ -146,12 +142,10 @@ class MyNode(wsp.Node):
         if messagesent == 0:
             self.log(f"{TStyle.RED}Node {nxt} is disconnected ")
 
-            """
-            Message type = RERR
-            Src = destination, this will be used to restart the RREQ to this destination
-            seq = making it 0 ensures that no table will be updated
-            Dest = the source of the data message
-            """
+            # Message type = RERR
+            # Src = destination, this will be used to restart the RREQ to this destination
+            # seq = making it 0 ensures that no table will be updated
+            # Dest = the source of the data message
             self.send_rerr(Message(MTypes.RERR, msg.dest, 0, msg.src))
 
     def send_rerr(self, msg):
@@ -168,7 +162,7 @@ class MyNode(wsp.Node):
             message = msg.hop()
             self.send(nxt, msg=message)
 
-            """Check if the path still exists"""
+            # Check if the path still exists
 
             messagesent = 0
             for node in self.neighbors:
@@ -189,43 +183,34 @@ class MyNode(wsp.Node):
         """
 
         if msg.type == MTypes.RREQ:
-            # If we already received an rreq before, ignore
-            if msg.src in self.table:
-                if self.table[msg.src]["seq"] < msg.seq:
-                    self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-                elif self.table[msg.src]["seq"] == msg.seq:
-                    if self.table[msg.src]["hops"] > msg.hops:
-                        self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-                    else:
-                        return
-                else:
-                    return
-            else:
+            # If this destination is new, or this msg is newer, or has a lower hop count, save
+            if msg.src not in self.table or \
+               msg.seq > self.table[msg.src]["seq"] or \
+               (self.table[msg.src]["seq"] == msg.seq and self.table[msg.src]["hops"] > msg.hops):
+
                 self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+            # Else, do nothing
+            else:
+                return
 
             # Draw arrow to parent as defined in __main__
             if self.draw_arrows:
                 self.scene.addlink(sender, self.id, "parent")
 
-            # If destination receives the rreq, reply with rreply
-
+            # If destination receives the RREQ, reply with RREP
             if self.id is msg.dest:
                 self.log(f"{TStyle.LIGHTGREEN}Received RREQ from {msg.src}{TStyle.ENDC}")
                 yield self.timeout(3)
                 self.log(f"{TStyle.BLUE}Send RREP to {msg.src}{TStyle.ENDC}")
-                """
-                The seq is updated with 10 when DEST receives a RREQ
-                """
+                # The seq is updated with 10 when DEST receives a RREQ
                 self.seq += 10
                 self.send_rreply(Message(MTypes.RREP, self.id, self.seq, msg.src))
-
+            # If this node has the route, reply with RREP
             elif msg.dest in self.table:
-                self.log(f"{TStyle.LIGHTGREEN} Node {self.id} has route {msg.dest}{TStyle.ENDC}")
-                yield self.timeout(3)
+                self.log(f"{TStyle.LIGHTGREEN}Node {self.id} has route to {msg.dest}{TStyle.ENDC}")
+                yield self.timeout(1)
                 self.log(f"{TStyle.BLUE}Send RREP to {msg.src}{TStyle.ENDC}")
-                """
-                The seq is updated with 10 when DEST receives a RREQ
-                """
+                # The seq is updated with 10 when DEST receives a RREQ
                 self.seq += 10
                 self.send_rreply(Message(MTypes.RREP, self.id, self.seq, msg.src))
 
@@ -235,21 +220,15 @@ class MyNode(wsp.Node):
                 self.send_rreq(msg)
 
         elif msg.type == MTypes.RREP:
-            """
-            self.next = sender
-             """
-            if msg.src in self.table:
-                if self.table[msg.src]["seq"] < msg.seq:
-                    self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-                elif self.table[msg.src]["seq"] == msg.seq:
-                    if self.table[msg.src]["hops"] > msg.hops:
-                        self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
-                    else:
-                        return
-                else:
-                    return
-            else:
+            # If this destination is new, or this msg is newer, or has a lower hop count, save
+            if msg.src not in self.table or \
+                    msg.seq > self.table[msg.src]["seq"] or \
+                    (self.table[msg.src]["seq"] == msg.seq and self.table[msg.src]["hops"] > msg.hops):
+
                 self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+            # Else, do nothing
+            else:
+                return
 
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
@@ -278,9 +257,7 @@ class MyNode(wsp.Node):
                 yield self.timeout(5)
                 self.log(f"{TStyle.BLUE}Restart sending RREQ{TStyle.ENDC}")
                 # broadcast a RREQ to find a new path
-                """
-                The seq is updated by 2 when starting a new RREQ
-                """
+                # The seq is updated by 2 when starting a new RREQ
                 self.seq += 2
                 self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, msg.dest))
                 self.start_process(self.start_send_data(msg.src))
