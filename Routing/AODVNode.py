@@ -20,6 +20,8 @@ class MyNode(wsp.Node):
     tx_range = 100
     draw_arrows = True
     cancel_data_transfer = False
+    seq = 1
+    RREQ_queue = []
 
     def __init__(self, sim, id, pos):
         """Define variables and initiate node superclass"""
@@ -28,7 +30,6 @@ class MyNode(wsp.Node):
         # Routing table,
         # the seq in the table entry to itself is very high
         self.table = {id: {"dest": id, "next": id, "seq": 1000, "hops": 0}}
-        self.seq = 1
 
     def init(self):
         super().init()
@@ -37,7 +38,7 @@ class MyNode(wsp.Node):
         self.scene.nodecolor(self.id, .7, .7, .7)
 
     def start_send_to(self, dest):
-        self.log(f"{TStyle.BLUE}Initiating sending to node {dest}{TStyle.ENDC}")
+        self.log(f"{TStyle.GREEN}Initiating sending to node {dest}{TStyle.ENDC}")
 
         yield self.timeout(0.01)  # Very small delay to make sure we're initialised.
 
@@ -57,9 +58,18 @@ class MyNode(wsp.Node):
             # Start new process to send data and keep simulating at the same time
             self.start_process(self.start_send_data(dest))
         else:
-            msg = Message(MTypes.RREQ, self.id, self.seq, dest)
-            self.send_rreq(msg)
+            self.find_route(dest)
         # For the first RREQ the seq of the node is taken
+
+    def find_route(self, dest):
+        # If we're already searching for a route, ignore
+        if dest in self.RREQ_queue:
+            return
+        # Else, say that we're searching and broadcast RREQ message
+        self.RREQ_queue.append(dest)
+        self.log(f"{TStyle.BLUE}New RREQ route search for {dest}{TStyle.ENDC}")
+        msg = Message(MTypes.RREQ, self.id, self.seq, dest)
+        self.send_rreq(msg)
 
     def print_table(self):
         """Pretty print routing table"""
@@ -246,6 +256,9 @@ class MyNode(wsp.Node):
             # If we're the source, route is established. Start the data sending process
             if self.id is msg.dest:
                 self.log(f"{TStyle.LIGHTGREEN}Received RREP from {msg.src}{TStyle.ENDC}")
+                # Remove origin from route finding queue
+                if msg.src in self.RREQ_queue:
+                    self.RREQ_queue.remove(msg.src)
                 yield self.timeout(5)
                 self.log(f"{TStyle.BLUE}Start sending data{TStyle.ENDC}")
                 # Start new process to send data and keep simulating at the same time
@@ -273,13 +286,11 @@ class MyNode(wsp.Node):
                 self.cancel_data_transfer = True
                 self.log(f"{TStyle.LIGHTGREEN}Received RERR for {msg.payload['orig_dest']} from {msg.src}{TStyle.ENDC}")
                 yield self.timeout(3)
-                self.log(f"{TStyle.BLUE}Restart sending RREQ for {msg.payload['orig_dest']}{TStyle.ENDC}")
                 # Broadcast a RREQ to find a new path to orig_dest
                 # The seq is updated by 2 when starting a new RREQ
                 self.seq += 2
-                self.send_rreq(Message(MTypes.RREQ, self.id, self.seq, msg.payload["orig_dest"]))
-                # Restart data sending is automatically triggered when the RREQ comes back, following not necessary
-                # self.start_process(self.start_send_data(msg.payload["orig_dest"]))
+                # Restart data sending is automatically triggered when the RREQ comes back
+                self.find_route(msg.payload["orig_dest"])
             # If not, forward RERR
             else:
                 yield self.timeout(.2)
