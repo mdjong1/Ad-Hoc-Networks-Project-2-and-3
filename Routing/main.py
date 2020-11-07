@@ -1,10 +1,5 @@
 import Routing
 
-
-# TODO: something with RERR, so a broken link can be noticed (and thus added to the demo)
-# TODO: do a bit more with sequence numbers
-
-
 if __name__ == '__main__':
     import random
     import wsnsimpy.wsnsimpy_tk as wsp
