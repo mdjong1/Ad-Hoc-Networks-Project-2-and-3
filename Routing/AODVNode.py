@@ -88,11 +88,14 @@ class MyNode(wsp.Node):
                     reachable = True
                     break
             if not reachable:
-                self.log(f"{TStyle.RED}Node {next_hop} is cannot be reached{TStyle.ENDC}")
+                self.log(f"{TStyle.RED}Node {next_hop} cannot be reached{TStyle.ENDC}")
         else:
             self.log(f"{TStyle.RED}Node {msg.dest} not in routing table{TStyle.ENDC}")
 
         if not reachable:
+            # Remove original destination from the routing table
+            if msg.dest in self.table:
+                del self.table[msg.dest]
             # Message type = RERR
             # Src = destination, this will be used to restart the RREQ to this destination
             # seq = making it 0 ensures that no table will be updated
@@ -215,8 +218,8 @@ class MyNode(wsp.Node):
                 # The seq is updated with 10 when DEST receives a RREQ
                 self.seq += 10
                 self.send_rreply(Message(MTypes.RREP, self.id, self.seq, msg.src))
-            # If this node has the route, reply with RREP
-            elif msg.dest in self.table:
+            # If this node has the route (and it's not stale), reply with RREP
+            elif msg.dest in self.table and self.table[msg.dest]["seq"] >= msg.seq:
                 self.log(f"{TStyle.LIGHTGREEN}Node {self.id} has route to {msg.dest}{TStyle.ENDC}")
                 yield self.timeout(1)
                 self.log(f"{TStyle.BLUE}Send RREP to {msg.src}{TStyle.ENDC}")
@@ -261,6 +264,9 @@ class MyNode(wsp.Node):
                 self.log(f"{TStyle.LIGHTGREEN}Got data from {msg.src} with seq {msg.seq}{TStyle.ENDC}")
 
         elif msg.type == MTypes.RERR:
+            # Remove original destination from the routing table
+            if msg.payload["orig_dest"] in self.table:
+                del self.table[msg.payload["orig_dest"]]
             # If we get notified that our destination is unreachable
             if self.id is msg.dest:
                 # Stop the current data transfer
@@ -277,7 +283,4 @@ class MyNode(wsp.Node):
             # If not, forward RERR
             else:
                 yield self.timeout(.2)
-                # Remove original destination from the routing table
-                if msg.payload["orig_dest"] in self.table:
-                    del self.table[msg.payload["orig_dest"]]
                 self.send_rerr(msg)
