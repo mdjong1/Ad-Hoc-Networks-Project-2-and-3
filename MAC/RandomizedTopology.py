@@ -4,6 +4,7 @@ import random
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 
+PACKET_SIZE = 256
 TX_RANGE = 100
 NUM_SENDERS = 5
 NODE_SPACING = 50
@@ -52,7 +53,7 @@ class RandomizedTopology:
 
             receiver = self.get_receiver(sender)
 
-            sender.add_data(256, receiver, time_offset=random.randint(0, int(NUM_SENDERS / 2)))
+            sender.add_data(PACKET_SIZE, receiver, time_offset=random.randint(0, int(NUM_SENDERS / 2)))
 
 
 if __name__ == '__main__':

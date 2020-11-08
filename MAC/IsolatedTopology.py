@@ -4,6 +4,7 @@ from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 
 
+PACKET_SIZE = 256
 NUM_NODES_PER_CLUSTER = 3
 CLUSTERS = [
     [50, 50, 150, 150],
@@ -43,7 +44,7 @@ class IsolatedTopology:
             # Ensure receiver != sender
             receiver = self.nodes[random.choice([i for i in range(min_val, max_val) if i != sender.id])]
 
-            sender.add_data(256, receiver, time_offset=random.randint(0, 4))
+            sender.add_data(PACKET_SIZE, receiver, time_offset=random.randint(0, 4))
 
 
 if __name__ == '__main__':

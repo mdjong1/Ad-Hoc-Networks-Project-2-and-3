@@ -18,8 +18,8 @@ class ExtendedLineTopology:
 
     def run(self):
         for n in range(5):
-            self.nodes[0].add_data(256, self.nodes[1])
-            self.nodes[3].add_data(256, self.nodes[2], 1)
+            self.nodes[0].add_data(PACKET_SIZE, self.nodes[1])
+            self.nodes[3].add_data(PACKET_SIZE, self.nodes[2], 1)
 
 
 if __name__ == '__main__':

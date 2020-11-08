@@ -3,7 +3,7 @@ from math import sin, cos, pi
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 
-
+PACKET_SIZE = 256
 NUM_STAR_TIPS = 5
 CIRCLE_RADIUS = 200
 ORIGIN_X = 325
@@ -32,8 +32,8 @@ class StarTopology:
 
     def run(self):
         target = self.nodes[0]
-        self.nodes[1].add_data(256, target)
-        self.nodes[4].add_data(256, target)
+        self.nodes[1].add_data(PACKET_SIZE, target)
+        self.nodes[4].add_data(PACKET_SIZE, target)
 
 
 if __name__ == '__main__':
