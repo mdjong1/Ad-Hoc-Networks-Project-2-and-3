@@ -34,7 +34,6 @@ class StarTopology:
         target = self.nodes[0]
         self.nodes[1].add_data(256, target)
         self.nodes[4].add_data(256, target)
-        # self.nodes[3].send_rts(target)
 
 
 if __name__ == '__main__':

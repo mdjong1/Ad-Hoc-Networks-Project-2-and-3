@@ -5,7 +5,7 @@ from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 
 TX_RANGE = 100
-NUM_SENDERS = 3
+NUM_SENDERS = 10
 NODE_SPACING = 60
 GRID_BOUNDS = [50, 50, 600, 600]
 
@@ -32,7 +32,7 @@ class GridTopology:
             return self.get_receiver(sender)
 
         else:
-            return possible_receiver.id
+            return possible_receiver
 
     def run(self):
         for cluster in range(NUM_SENDERS):
@@ -40,7 +40,7 @@ class GridTopology:
 
             receiver = self.get_receiver(sender)
 
-            sender.send_rts(receiver)
+            sender.add_data(256, receiver, time_offset=random.randint(0, int(NUM_SENDERS / 2)))
 
 
 if __name__ == '__main__':

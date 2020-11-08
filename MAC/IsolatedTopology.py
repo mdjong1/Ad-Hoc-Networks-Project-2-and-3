@@ -41,9 +41,9 @@ class IsolatedTopology:
 
             sender = self.nodes[random.randint(min_val, max_val)]
             # Ensure receiver != sender
-            receiver = self.nodes[random.choice([i for i in range(min_val, max_val) if i != sender.id])].id
+            receiver = self.nodes[random.choice([i for i in range(min_val, max_val) if i != sender.id])]
 
-            sender.send_rts(receiver)
+            sender.add_data(256, receiver, time_offset=random.randint(0, 4))
 
 
 if __name__ == '__main__':

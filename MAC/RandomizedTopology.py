@@ -44,7 +44,7 @@ class RandomizedTopology:
             return self.get_receiver(sender)
 
         else:
-            return possible_receiver.id
+            return possible_receiver
 
     def run(self):
         for cluster in range(NUM_SENDERS):
@@ -52,7 +52,7 @@ class RandomizedTopology:
 
             receiver = self.get_receiver(sender)
 
-            sender.send_rts(receiver)
+            sender.add_data(256, receiver, time_offset=random.randint(0, int(NUM_SENDERS / 2)))
 
 
 if __name__ == '__main__':
