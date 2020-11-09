@@ -15,7 +15,7 @@ if __name__ == '__main__':
         timescale=1,
         visual=True,
         terrain_size=(terrain_size, terrain_size),
-        title="Static AODV Demo"
+        title="Dynamic AODV Demo"
     )
 
     # Define a line style for parent links

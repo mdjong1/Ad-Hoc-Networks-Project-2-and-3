@@ -4,6 +4,7 @@ import Routing
 
 
 demo_index = 0  # Used by the demo control function
+available_nodes = []
 
 
 def clear_board():
@@ -15,7 +16,7 @@ def clear_board():
 
 def demo_control_callback():
     """Function that defines the demo that we're showing"""
-    global demo_index
+    global demo_index, available_nodes
     demo_index += 1
     n_nodes = len(Routing.simulator.nodes)
 
@@ -32,6 +33,9 @@ def demo_control_callback():
 
         print(f"{TStyle.UNDERLINE}Same source & destination{TStyle.ENDC}")
         source_node.start_process(source_node.start_send_to(dest_id))
+
+        # Copy all nodes to the list of available nodes for random selection later.
+        available_nodes = [node for node in Routing.simulator.nodes]
     # Then, same route, but break a link
     elif demo_index == 2:
         clear_board()
@@ -45,8 +49,10 @@ def demo_control_callback():
             node = Routing.simulator.nodes[node.table[dest_id]["next"]]
         node.move(5000, 5000)  # Move the node far away to "remove" it.
         print(f"{TStyle.UNDERLINE}Removing node {node.id}{TStyle.ENDC}")
+        available_nodes.remove(node)  # Remove removed node from available nodes
 
         source_node.start_process(source_node.start_send_to(dest_id))
+
     # 3 data transfers between random nodes
     elif demo_index < 5:
         Routing.simulator.nodes[1].print_table()
@@ -54,8 +60,11 @@ def demo_control_callback():
         clear_board()
 
         # Fixme: make sure the nodes are not too close together and also not the removed node and also not itself!
-        new_sender = Routing.simulator.nodes[random.randint(0, n_nodes - 1)]
-        new_receiver = Routing.simulator.nodes[random.randint(0, n_nodes - 1)]
+        new_sender = random.choice(available_nodes)
+        available_nodes.remove(new_sender)  # Temporarily remove new sender so it doesn't choose itself for dest
+        new_receiver = random.choice(available_nodes)
+        available_nodes.append(new_sender)  # Re-add
+
         new_sender.start_process(new_sender.start_send_to(new_receiver.id))
     # 3 simultaneous data transfers
     elif demo_index == 5:
@@ -68,8 +77,12 @@ def demo_control_callback():
         # Start 3 simultaneous processes
         print(f"{TStyle.UNDERLINE}Starting 3 processes{TStyle.ENDC}")
         for i in range(3):
-            new_sender = Routing.simulator.nodes[random.randint(0, n_nodes - 1)]
-            new_receiver = Routing.simulator.nodes[random.randint(0, n_nodes - 1)]
+            new_sender = random.choice(available_nodes)
+            available_nodes.remove(new_sender)
+
+            new_receiver = random.choice(available_nodes)
+            available_nodes.remove(new_receiver)
+
             new_sender.start_process(new_sender.start_send_to(new_receiver.id))
     elif demo_index < 8:
         pass  # wait for previous processes to finish

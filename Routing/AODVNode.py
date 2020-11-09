@@ -73,13 +73,13 @@ class MyNode(wsp.Node):
 
     def print_table(self):
         """Pretty print routing table"""
-        dashes = 8 * 5 + 2 * 4 + 1
+        dashes = 8 * 4 + 2 * 3 + 1
         print(f"{TStyle.BOLD}Routing table of node {self.id}{TStyle.ENDC}")
         print('+' + '-' * dashes + '+')  # Row of ---
-        print(f"| {'Source':<8}| {'Dest':<8}| {'Next':<8}| {'Seq':<8}| {'Hops':<8}|")
+        print(f"| {'Dest':<8}| {'Next':<8}| {'Seq':<8}| {'Hops':<8}|")
         print('+' + '-' * dashes + '+')  # Row of ---
         for i, row in self.table.items():
-            print(f"| {i:<8}| {row['dest']:<8}| {row['next']:<8}| {row['seq']:<8}| {row['hops']:<8}|")
+            print(f"| {row['dest']:<8}| {row['next']:<8}| {row['seq']:<8}| {row['hops']:<8}|")
         print('+' + '-' * dashes + '+')  # Row of ---
 
     def next_reachable(self, msg):
@@ -211,7 +211,7 @@ class MyNode(wsp.Node):
                msg.seq > self.table[msg.src]["seq"] or \
                (self.table[msg.src]["seq"] == msg.seq and self.table[msg.src]["hops"] > msg.hops):
 
-                self.table[msg.src] = {"dest": msg.src, "next": sender, "seq": msg.seq, "hops": msg.hops}
+                self.table[msg.src] = {"dest": msg.dest, "next": sender, "seq": msg.seq, "hops": msg.hops}
             # Else, do nothing
             else:
                 return
