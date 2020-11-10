@@ -1,5 +1,6 @@
 import wsnsimpy.wsnsimpy_tk as wsp
 import random
+
 from config import *
 
 IDLE_STATE = 0
@@ -20,7 +21,7 @@ def delay():
     return random.uniform(1, 2)
 
 
-class DataPacket():
+class DataPacket:
     def __init__(self, length, target_id, time_offset=0):
         self.length = length
         self.target_id = target_id
@@ -30,6 +31,7 @@ class DataPacket():
 class MacawNode(wsp.LayeredNode):
     def __init__(self, sim, id, pos):
         super().__init__(sim, id, pos)
+
         self._state = IDLE_STATE
         self._data_queue = []  # Queue of data packets
         self._backoff_time = MIN_BACKOFF_TIME
@@ -49,6 +51,8 @@ class MacawNode(wsp.LayeredNode):
         # if this value exceeds CTS_TIMEOUT a cts is not received in time
         self._cts_timeout_counter = 0
 
+        self.packets_received = 0
+
     def run(self):
         while True:
             if len(self._data_queue) > 0 and self._state == IDLE_STATE:
@@ -58,6 +62,7 @@ class MacawNode(wsp.LayeredNode):
                 info = "Node: " + str(self.id) + "\n" \
                     + "BO: " + str(self._backoff_time) + "\n" \
                     + "Queue: " + str(len(self._data_queue))
+
                 self.scene.nodelabel(self.id, label=info)
 
             # allow others to execute, because python somehow cannot do things i
@@ -140,8 +145,7 @@ class MacawNode(wsp.LayeredNode):
 
     def _send_rts(self, target_id, data_length):
         self.log(f"Send RTS to {target_id}")
-        self.send(wsp.BROADCAST_ADDR, msg='RTS',
-                  target_id=target_id, data_length=data_length)
+        self.send(wsp.BROADCAST_ADDR, msg='RTS', target_id=target_id, data_length=data_length)
 
     def _send_rrts(self, target_id):
         self.log(f"Send RRTS to {target_id}")
@@ -150,8 +154,7 @@ class MacawNode(wsp.LayeredNode):
 
     def _send_cts(self, target_id, data_length):
         self.log(f"Send CTS to {target_id}")
-        self.send(wsp.BROADCAST_ADDR, msg='CTS',
-                  target_id=target_id, data_length=data_length)
+        self.send(wsp.BROADCAST_ADDR, msg='CTS', target_id=target_id, data_length=data_length)
 
     def _send_ds(self):
         if len(self._data_queue) > 0:
@@ -166,8 +169,7 @@ class MacawNode(wsp.LayeredNode):
             self._state = SENDING_STATE
             packet = self._data_queue[0]
             self.log(f"Send DATA to {packet.target_id}")
-            self.send(wsp.BROADCAST_ADDR, msg='DATA',
-                      target_id=packet.target_id, data_length=packet.length)
+            self.send(wsp.BROADCAST_ADDR, msg='DATA', target_id=packet.target_id, data_length=packet.length)
 
     def _send_ack(self, target_id):
         self.log(f"Send ACK to {target_id}")
@@ -180,6 +182,8 @@ class MacawNode(wsp.LayeredNode):
     #        self._rrts_target = None
 
     def on_receive(self, sender_id, msg, **kwargs):
+        self.packets_received += 1
+
         target_id = kwargs['target_id']
         data_length = -1
 
@@ -311,11 +315,10 @@ class MacawNode(wsp.LayeredNode):
             # with a data packet that is not meant for us
             if self.id == target_id:
 
-                # Simulate time it takes to transmite data
+                # Simulate time it takes to transmit data
                 self._state = RECEIVING_STATE
                 yield self.timeout(BYTE_TRANSMISSION_TIME * data_length)
-                self.log(
-                    f"Got DATA from {sender_id} with data length {data_length}")
+                self.log(f"Got DATA from {sender_id} with data length {data_length}")
 
                 self._state = IDLE_STATE
                 self._send_ack(sender_id)
@@ -325,7 +328,7 @@ class MacawNode(wsp.LayeredNode):
         ################
         elif msg == 'ACK':
             if self.id == target_id:
-                # Simulate time it takes to transmite ACK message
+                # Simulate time it takes to transmit ACK message
                 yield self.timeout(BYTE_TRANSMISSION_TIME * DATA_LENGTH["ACK"])
                 # we can finally remove the data packet from the queue yeah
                 self.log(f"Received ACK from {sender_id}")
