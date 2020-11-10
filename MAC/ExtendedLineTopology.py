@@ -1,5 +1,9 @@
+import threading
+
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
+
+from Utilization import Utilization
 from config import SLOT_TIME
 
 PACKET_SIZE = 256
@@ -33,5 +37,7 @@ if __name__ == '__main__':
     topology = ExtendedLineTopology()
     topology.set_nodes()
     topology.run()
+
+    threading.Thread(target=Utilization, args=(simulator, topology.nodes,)).start()
 
     simulator.run()

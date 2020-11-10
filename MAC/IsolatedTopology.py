@@ -1,15 +1,17 @@
 import random
+import threading
 
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
 
+from Utilization import Utilization
 
 PACKET_SIZE = 256
 NUM_NODES_PER_CLUSTER = 3
 CLUSTERS = [
     [50, 50, 150, 150],
     [450, 50, 600, 150],
-    [50, 450, 150, 600],
+    [50, 350, 150, 450],
     [450, 450, 600, 600]
 ]
 
@@ -59,5 +61,7 @@ if __name__ == '__main__':
     topology = IsolatedTopology()
     topology.set_nodes()
     topology.run()
+
+    threading.Thread(target=Utilization, args=(simulator, topology.nodes,)).start()
 
     simulator.run()

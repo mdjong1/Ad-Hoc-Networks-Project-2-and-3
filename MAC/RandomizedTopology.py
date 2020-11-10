@@ -1,8 +1,11 @@
 import math
 import random
+import threading
 
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
+
+from Utilization import Utilization
 
 PACKET_SIZE = 256
 TX_RANGE = 100
@@ -68,5 +71,7 @@ if __name__ == '__main__':
     topology = RandomizedTopology()
     topology.set_nodes()
     topology.run()
+
+    threading.Thread(target=Utilization, args=(simulator, topology.nodes,)).start()
 
     simulator.run()

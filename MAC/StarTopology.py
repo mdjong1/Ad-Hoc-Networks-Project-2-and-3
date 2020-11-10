@@ -1,7 +1,10 @@
+import threading
 from math import sin, cos, pi
 
 from MacawNode import MacawNode
 import wsnsimpy.wsnsimpy_tk as wsp
+
+from Utilization import Utilization
 
 PACKET_SIZE = 256
 NUM_STAR_TIPS = 5
@@ -48,5 +51,7 @@ if __name__ == '__main__':
     topology = StarTopology()
     topology.set_nodes()
     topology.run()
+
+    threading.Thread(target=Utilization, args=(simulator, topology.nodes,)).start()
 
     simulator.run()
